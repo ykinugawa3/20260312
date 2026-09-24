@@ -1,5 +1,66 @@
 # 競馬予想ソフト 企画案
 
+## Phase 1 (MVP) の使い方
+
+実装済み: CSV 取込 → SQLite 保存 → 特徴量生成 → LightGBM で単勝勝率を予測 → CLI に表示。
+
+```bash
+pip install -e '.[dev]'
+
+# 1. データ投入 (実データが無い場合は合成データで動作確認できる)
+keiba sample                               # 合成データ (最終開催日は結果未確定) を data/keiba.db に投入
+keiba import races.csv entries.csv         # 実データの取り込み
+
+# 2. 時系列分割で検証 (指定日より前で学習し、以降で評価)
+keiba evaluate --test-start 2025-06-01
+
+# 3. 全期間で学習して models/win_model.pkl に保存
+keiba train
+
+# 4. 予測 (既定: 結果未確定の直近開催日)
+keiba predict
+keiba predict --date 2025-11-08 --output pred.csv
+keiba predict --race-id 202511150102
+```
+
+出力例:
+
+```
+■ 2025-11-15 中山 2R 芝1200m 良 2勝 (202511150102, 16頭)
+  印  馬番  馬名                   勝率   オッズ  期待値  着順
+  ◎     1  サンプルホース650     28.7%      2.5    0.72
+  ○     6  サンプルホース1030    21.5%      6.4    1.38       *
+  ▲     5  サンプルホース453     16.5%      8.5    1.40       *
+```
+
+### CSV の形式
+
+- `races.csv`: `race_id, date, course, race_number, surface, distance, track_condition, race_class`
+- `entries.csv`: `race_id, horse_id, horse_name, jockey_id, trainer_id, frame_number, horse_number, sex, age,
+  weight_carried, horse_weight, horse_weight_diff, odds, popularity, finish_position, time_sec, last_3f`
+- 必須列は races が `race_id, date, course, surface, distance`、entries が `race_id, horse_id, horse_number`。
+  出馬表 (未確定レース) は `finish_position` などを空欄にする。
+- 列の定義は `keiba/db.py` を参照。`keiba sample --csv-dir out/` で見本の CSV を出力できる。
+
+### 構成
+
+| ファイル | 役割 |
+|----------|------|
+| `keiba/db.py` | SQLite スキーマと入出力 |
+| `keiba/importer.py` | CSV 取込・検証 |
+| `keiba/sample_data.py` | 動作確認用の合成データ生成 |
+| `keiba/features.py` | 特徴量生成 (過去走・騎手/調教師成績・レース内順位など。当日以降の情報は使わない) |
+| `keiba/model.py` | LightGBM 学習・レース内で確率を正規化・評価・印付け |
+| `keiba/cli.py` | コマンドライン |
+
+### Phase 1 時点の制約
+
+- 予測確率はまだ較正していないため、期待値 (`勝率 × オッズ`) は参考値。高オッズ馬の期待値を過大に出しやすい (Phase 2 で確率較正を入れる)。
+- 合成データの結果は、パイプラインが動くことを確認するためのもの。実際の予想精度は実データで検証する必要がある。
+- オッズはモデルの入力に使わず、期待値の計算と市場との比較にだけ使っている。
+
+---
+
 ## 1. コンセプト
 
 「当てる」より **「長期的に回収率100%超を目指す」** ことを主目的とした、データ駆動型の競馬予想支援ソフト。
