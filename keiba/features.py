@@ -20,7 +20,7 @@ NUMERIC_FEATURES = [
     "n_past_races", "last_finish", "last_finish_ratio", "avg_finish_ratio_5",
     "best_finish_ratio_5", "win_rate_past", "top3_rate_past",
     "avg_time_diff_5", "last_time_diff", "avg_last3f_rank_ratio_5",
-    "same_surface_finish_ratio", "same_dist_finish_ratio", "dist_change",
+    "same_surface_finish_ratio", "same_dist_finish_ratio", "same_going_finish_ratio", "dist_change",
     # 人
     "jockey_win_rate", "jockey_top3_rate", "jockey_rides",
     "trainer_win_rate", "trainer_top3_rate", "jockey_changed",
@@ -52,6 +52,7 @@ def _add_race_level(df: pd.DataFrame) -> pd.DataFrame:
         / (df["num_runners"] - 1).clip(lower=1)
     )
     df["dist_band"] = _dist_band(df["distance"])
+    df["going"] = np.where(df["track_condition"] == "良", "dry", "wet")
     return df
 
 
@@ -80,8 +81,12 @@ def _add_horse_history(df: pd.DataFrame) -> pd.DataFrame:
     df["jockey_changed"] = (df["jockey_id"] != g["jockey_id"].shift(1)).astype(float)
     df.loc[df["n_past_races"] == 0, "jockey_changed"] = np.nan
 
-    # 同じ馬場 / 同じ距離帯での過去平均着順比
-    for key, name in (("surface", "same_surface_finish_ratio"), ("dist_band", "same_dist_finish_ratio")):
+    # 同じ馬場 / 同じ距離帯 / 同じ馬場状態 (良・道悪) での過去平均着順比
+    for key, name in (
+        ("surface", "same_surface_finish_ratio"),
+        ("dist_band", "same_dist_finish_ratio"),
+        ("going", "same_going_finish_ratio"),
+    ):
         sub_g = df.groupby(["horse_id", key], sort=False)["finish_ratio"]
         shifted = sub_g.shift(1)
         df[name] = (

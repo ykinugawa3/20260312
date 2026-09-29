@@ -2,7 +2,12 @@
 
 実データが無い環境でもパイプライン全体を試せるよう、
 馬の潜在能力・距離/馬場適性・騎手/調教師の腕を持つ簡易シミュレーションでデータを作る。
-市場 (オッズ) は潜在能力をノイズ付きでしか知らず、控除率 20% を反映する。
+
+市場 (オッズ) は現実に近い強さを持たせてある:
+- 過去成績からは分からない「当日の調子」を市場は一部見抜いている (モデルより情報が多い)
+- 一方で距離・道悪の適性は十分に織り込んでいない (モデルが突ける非効率)
+- 控除率 20%、人気薄が過剰に買われるバイアスあり
+そのため「モデル単体 < 市場 < モデル+市場の合成」という関係になる。
 """
 
 from __future__ import annotations
@@ -18,6 +23,18 @@ CONDITION_P = [0.65, 0.2, 0.1, 0.05]
 CLASSES = ["未勝利", "1勝", "2勝", "3勝", "OP"]
 SEXES = ["牡", "牝", "セ"]
 TAKEOUT = 0.8  # 単勝の払戻率
+FORM_SD = 0.5            # 当日の調子のばらつき
+MARKET_FORM_SIGHT = 0.7  # 市場が調子をどれだけ見抜くか
+MARKET_NOISE_SD = 0.6    # 市場の見積り誤差
+MARKET_APTITUDE_SIGHT = 0.3  # 市場が距離・道悪適性をどれだけ織り込むか (モデルが突ける非効率)
+LONGSHOT_BIAS = 0.9      # 1 未満で人気薄が過剰に買われる
+# 織り込んでいない適性などによる追加の不確実性. 人気別の単勝回収率が
+# 実際の JRA に近くなる (全体 約78%, 1番人気 約80%, 人気帯で大きく偏らない) よう経験的に調整した値
+MARKET_EXTRA_SD = 0.5
+# 市場から見た残りの不確実性 (レース当日の運 + 見抜けなかった調子 + 見積り誤差 + 上記)
+MARKET_RESIDUAL_SD = float(np.sqrt(
+    1.0 + ((1 - MARKET_FORM_SIGHT) * FORM_SD) ** 2 + MARKET_NOISE_SD ** 2 + MARKET_EXTRA_SD ** 2
+))
 
 
 def generate(
@@ -74,25 +91,35 @@ def generate(
             trainers = h["trainer_id"].str[1:].astype(int).to_numpy()
             surf_sign = 1 if surface == "芝" else -1
             wet = CONDITIONS.index(cond) / 3
+            # 適性 (距離・道悪). 市場はこれを十分には織り込まない
+            aptitude = (
+                -np.abs(h["best_distance"].to_numpy() - distance) / 600
+                + wet * h["mud_pref"].to_numpy()
+            )
             strength = (
                 h["ability"].to_numpy()
                 + surf_sign * h["turf_pref"].to_numpy()
-                - np.abs(h["best_distance"].to_numpy() - distance) / 600
-                + wet * h["mud_pref"].to_numpy()
                 + jockey_skill[jockeys]
                 + trainer_skill[trainers]
             )
             weights = h["base_weight"].to_numpy() + rng.normal(0, 6, n_runners)
-            perf = strength + rng.normal(0, 1.0, n_runners)
+            # 当日の調子. 過去成績からは分からないが、市場 (調教・パドック情報) は一部知っている
+            form = rng.normal(0, FORM_SD, n_runners)
+            perf = strength + aptitude + form + rng.normal(0, 1.0, n_runners)
             order = (-perf).argsort().argsort() + 1
 
             base_time = distance / 16.5 + (1.5 if surface == "ダート" else 0) + wet
             time_sec = base_time - perf * 0.4 + rng.normal(0, 0.2, n_runners)
             last_3f = 35.5 - perf * 0.3 + rng.normal(0, 0.4, n_runners)
 
-            # 市場の見積り: 真の強さにノイズを乗せたもの
-            market = strength + rng.normal(0, 0.6, n_runners)
-            p_market = np.exp(market * 1.3)
+            # 市場の見積り: 真の強さ + 一部だけ織り込んだ適性 + 調教等で見える調子 + 誤差.
+            # さらに大穴が過剰に買われる (フェイバリット・ロングショット・バイアス) 分だけ確率を平らにする
+            market = (
+                strength + MARKET_APTITUDE_SIGHT * aptitude + MARKET_FORM_SIGHT * form
+                + rng.normal(0, MARKET_NOISE_SD, n_runners)
+            )
+            p_market = _simulated_win_prob(market, MARKET_RESIDUAL_SD, rng)
+            p_market = p_market ** LONGSHOT_BIAS
             p_market /= p_market.sum()
             odds = np.maximum(1.1, np.round(TAKEOUT / p_market, 1))
             popularity = odds.argsort().argsort() + 1
@@ -125,6 +152,13 @@ def generate(
                     "last_3f": None if is_upcoming else round(float(last_3f[i]), 1),
                 })
     return pd.DataFrame(race_rows), pd.DataFrame(entry_rows)
+
+
+def _simulated_win_prob(mean: np.ndarray, sd: float, rng: np.random.Generator, n_sims: int = 1000) -> np.ndarray:
+    """各馬の能力値が mean + N(0, sd) のときに 1 着になる確率をモンテカルロで求める."""
+    draws = mean + rng.normal(0, sd, (n_sims, len(mean)))
+    wins = np.bincount(draws.argmax(axis=1), minlength=len(mean))
+    return (wins + 0.5) / (n_sims + 0.5 * len(mean))
 
 
 def _frame_number(horse_number: int, n_runners: int) -> int:
