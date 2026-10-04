@@ -1,5 +1,15 @@
 # 競馬予想ソフト 企画案
 
+## Windows での使い方 (ダブルクリック)
+
+1. [Python](https://www.python.org/downloads/) 3.10 以上をインストールする
+   (最初の画面で **Add python.exe to PATH** にチェック)
+2. このリポジトリを取得する (GitHub の「Code → Download ZIP」で展開するか `git clone`)
+3. フォルダ内の **`setup.bat`** をダブルクリック (初回のみ。ライブラリの導入・仮データ作成・学習を行う)
+4. **`start.bat`** をダブルクリックするとブラウザで画面が開く。終了は黒い画面を閉じる
+
+同じ Wi-Fi のスマホからは、起動時に表示される `Network URL` (`http://192.168.x.x:8501`) で開ける。
+
 ## 使い方 (Phase 1〜2 実装済み)
 
 CSV 取込 → SQLite 保存 → 特徴量生成 → LightGBM で単勝勝率を予測 → 市場オッズと合成して確率を較正
