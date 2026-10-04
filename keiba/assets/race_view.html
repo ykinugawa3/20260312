@@ -1,83 +1,96 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<title>レース実況</title>
+<title>レース実況ビュー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
 <style>
+  /* レイアウト: 中継画面。左にコース俯瞰と実況テロップ、右に順位ボード (狭い画面では縦積み) */
   :root {
-    --bg: #0f1a13;
-    --panel: #16241b;
-    --panel-2: #1d2f23;
-    --line: #2b4232;
-    --text: #f2f5f0;
-    --muted: #a9b8ab;
-    --accent: #ffd34d;
-    --turf: #3d8b45;
-    --turf-in: #2b6a33;
-    --dirt: #a27c55;
-    --rail: #f4f4ef;
+    color-scheme: dark;
+    --bg: #0d1610;        /* 夜の内馬場 */
+    --panel: #142019;
+    --panel-2: #1b2a20;
+    --line: #2a3d30;
+    --text: #eef3ec;
+    --muted: #9fb1a3;
+    --accent: #ffcc33;    /* 中継テロップの金 */
+    --turf: #3b8a46;
+    --turf-in: #255a2d;
+    --dirt: #a57d55;
+    --rail: #f3f3ee;
+    --ground: #17291c;
+    --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", system-ui, sans-serif;
+    --font-num: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--bg); color: var(--text);
-    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", system-ui, sans-serif; }
-  .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 10px; padding: 10px; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+  .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 12px;
+    padding-block: 12px; padding-inline: 16px; }
   @media (max-width: 760px) { .wrap { grid-template-columns: minmax(0, 1fr); } }
-  .head { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .head h1 { font-size: 17px; margin: 0; letter-spacing: .02em; }
-  .head .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--panel-2);
-    color: var(--muted); border: 1px solid var(--line); }
+  .head { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+  .head h1 { font-size: 18px; margin: 0; letter-spacing: .02em; text-wrap: balance; font-weight: 700; }
+  .badge { font-size: 12px; padding: 2px 9px; border-radius: 999px; background: var(--panel-2);
+    color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+  .badge.mode { color: var(--accent); border-color: var(--accent); }
+  #raceSel { margin-left: auto; max-width: 100%; }
   .stage { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    overflow: hidden; }
+    overflow: hidden; min-width: 0; }
   canvas { display: block; width: 100%; height: 360px; }
-  .hud { position: absolute; top: 8px; left: 10px; display: flex; gap: 8px; font-variant-numeric: tabular-nums; }
-  .hud span { background: rgba(0,0,0,.55); padding: 3px 8px; border-radius: 6px; font-size: 13px; }
-  .telop { min-height: 54px; padding: 10px 14px; border-top: 1px solid var(--line); background: #0b130e;
-    font-size: 16px; line-height: 1.5; display: flex; align-items: center; gap: 10px; }
-  .telop .mic { color: var(--accent); font-weight: 700; font-size: 12px; border: 1px solid var(--accent);
-    border-radius: 4px; padding: 1px 6px; flex: none; }
-  .telop .txt { transition: opacity .25s; }
+  .hud { position: absolute; top: 8px; left: 10px; display: flex; gap: 6px; font-family: var(--font-num);
+    font-variant-numeric: tabular-nums; }
+  .hud span { background: rgba(0,0,0,.6); padding: 2px 9px; border-radius: 5px; font-size: 17px; letter-spacing: .03em; }
+  .hud #remain { color: var(--accent); }
+  .telop { min-height: 58px; padding: 10px 14px; border-top: 1px solid var(--line); background: var(--bg);
+    font-size: 16px; line-height: 1.55; display: flex; align-items: center; gap: 10px; font-weight: 500; }
+  .telop .mic { color: var(--bg); background: var(--accent); font-weight: 700; font-size: 11px; letter-spacing: .12em;
+    border-radius: 3px; padding: 2px 7px; flex: none; }
+  .telop .txt { transition: opacity .25s; min-width: 0; }
   .controls { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--line);
     flex-wrap: wrap; }
   button, select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
     border-radius: 6px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
   button:hover, select:hover { border-color: var(--muted); }
-  button.primary { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 700; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 700; }
   label.toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
   .note { font-size: 11px; color: var(--muted); margin-left: auto; }
   .board { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px;
-    display: flex; flex-direction: column; min-height: 0; }
-  .board h2 { font-size: 13px; margin: 2px 4px 8px; color: var(--muted); font-weight: 600; }
+    display: flex; flex-direction: column; min-width: 0; }
+  .board h2 { font-size: 12px; margin: 2px 4px 8px; color: var(--muted); font-weight: 700; letter-spacing: .12em; }
   .rows { position: relative; flex: 1; }
   .row { position: absolute; left: 0; right: 0; height: 26px; display: flex; align-items: center; gap: 6px;
     padding: 0 4px; font-size: 12.5px; transition: top .35s ease; border-radius: 4px; }
-  .row.hl { background: rgba(255, 211, 77, .12); }
-  .pos { width: 18px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .row.hl { background: rgba(255, 204, 51, .12); }
+  .pos { width: 18px; text-align: right; color: var(--muted); font-family: var(--font-num); font-size: 15px;
+    font-variant-numeric: tabular-nums; }
   .num { width: 22px; height: 20px; border-radius: 4px; display: grid; place-items: center; font-weight: 700;
-    font-size: 12px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.35); }
+    font-size: 13px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.35); font-family: var(--font-num); }
   .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mark { width: 14px; color: var(--accent); font-weight: 700; }
   .gap { width: 64px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 11.5px; }
   .result { position: absolute; inset: 0; background: rgba(5, 12, 7, .82); display: none; align-items: center;
-    justify-content: center; }
+    justify-content: center; padding: 12px; }
   .result.show { display: flex; }
   .result .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px;
-    min-width: 280px; max-width: 90%; }
+    min-width: 0; width: min(380px, 100%); }
   .result h3 { margin: 0 0 8px; font-size: 15px; }
   .result table { border-collapse: collapse; width: 100%; font-size: 13px; }
   .result td { padding: 4px 6px; border-top: 1px solid var(--line); }
-  .result td.r { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .result td.r { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
   .result .hit { margin-top: 8px; color: var(--accent); font-weight: 700; font-size: 13px; }
+  .result .close { margin-top: 10px; font-size: 11px; color: var(--muted); }
   .start { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     background: rgba(5, 12, 7, .45); }
+  .start[hidden] { display: none; }
   .start button { font-size: 18px; padding: 12px 28px; }
+  @media (prefers-reduced-motion: reduce) { .row, .telop .txt { transition: none; } }
 </style>
-</head>
-<body>
+
 <div class="wrap">
   <div class="head">
     <h1 id="title"></h1>
-    <span class="badge" id="mode"></span>
+    <span class="badge mode" id="mode"></span>
     <span class="badge" id="dir"></span>
+    <select id="raceSel" aria-label="レースを選ぶ" hidden></select>
   </div>
   <div class="stage" id="stage">
     <canvas id="cv"></canvas>
@@ -86,7 +99,7 @@
     <div class="result" id="result"><div class="card" id="resultCard"></div></div>
     <div class="telop"><span class="mic">実況</span><span class="txt" id="telop">ゲートインが完了しました。</span></div>
     <div class="controls">
-      <button id="playBtn">⏸ 一時停止</button>
+      <button id="playBtn">▶ 再生</button>
       <button id="resetBtn">⟲ 最初から</button>
       <select id="speed" aria-label="再生速度">
         <option value="1">等速</option><option value="2" selected>2倍速</option><option value="4">4倍速</option>
@@ -100,33 +113,47 @@
     <div class="rows" id="rows"></div>
   </div>
 </div>
-<script>
-const RACE = __RACE_DATA__;
-const H = RACE.horses, N = H.length, D = RACE.distance, DT = RACE.dt;
-const P = RACE.positions;                       // P[i][k] = 馬 i のコマ k での走行距離 (m)
-const FRAMES = P[0].length;
-const DIRT = RACE.title.includes("ダート");
 
-document.getElementById("title").textContent = RACE.title;
-document.getElementById("mode").textContent = RACE.mode === "replay" ? "結果リプレイ" : "予想シミュレーション";
-document.getElementById("dir").textContent = RACE.left_handed ? "左回り" : "右回り";
-document.getElementById("note").textContent = RACE.note;
+<script>
+const DATA = __RACE_DATA__;
+const RACES = Array.isArray(DATA) ? DATA : [DATA];
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const COLOR = {
+  ground: css("--ground"), turf: css("--turf"), turfIn: css("--turf-in"), dirt: css("--dirt"),
+  rail: css("--rail"), accent: css("--accent"), muted: css("--muted"),
+};
+const NUM_FONT = "'Barlow Condensed', 'Arial Narrow', sans-serif";
+
+// ------------------------------------------------------------ 表示中のレース
+let RACE, H, N, D, DT, P, FRAMES, DIRT, winT, rowEls = [], lateral = [];
+
+const marginText = (m) => {
+  const l = m / 2.4;
+  if (l < 0.15) return "ハナ"; if (l < 0.3) return "アタマ"; if (l < 0.45) return "クビ";
+  if (l < 0.65) return "1/2馬身"; if (l < 0.85) return "3/4馬身"; if (l >= 10) return "大差";
+  const whole = Math.floor(l + 0.25);
+  return whole + (l - whole >= 0.25 ? "½" : "") + "馬身";
+};
+const modeLabel = (r) => r.mode === "replay" ? "結果リプレイ" : "予想シミュレーション";
 
 // ------------------------------------------------------------ コース形状
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
-const R_HORSE = 9, LANE_PX = 2 * R_HORSE + 2, LANES = 5;
-const C_M = 1900;                                // コース 1 周の長さ (m, 表示用の共通値)
-let G = null;                                    // 描画用のジオメトリ (px)
+const LANES = 5;
+const C_M = 1900;                 // コース 1 周の長さ (m, 表示用の共通値)
+let G = null;                     // 描画用のジオメトリ (px)
 
 function layout() {
   const dpr = window.devicePixelRatio || 1;
-  const w = cv.clientWidth, h = cv.clientHeight;
+  const w = cv.clientWidth;
+  const h = Math.round(Math.min(380, Math.max(230, w * 0.56)));
+  cv.style.height = h + "px";
   cv.width = w * dpr; cv.height = h * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const band = LANES * LANE_PX + 8;
-  const R = Math.max(40, (h - 46 - 2 * band) / 2);
-  const Ls = Math.max(80, w - 40 - 2 * (R + band));
-  G = { w, h, band, R, Ls, cx: w / 2, cy: h / 2 + 6, L: 2 * Ls + 2 * Math.PI * R };
+  const k = Math.min(1, Math.max(0.62, w / 760));       // 狭い画面では馬とレーンを小さく
+  const rh = 9 * k, lane = 2 * rh + 2, band = LANES * lane + 8;
+  const R = Math.max(24, (h - 40 - 2 * band) / 2);
+  const Ls = Math.max(40, w - 24 - 2 * (R + band));
+  G = { w, h, k, rh, lane, band, R, Ls, cx: w / 2, cy: h / 2 + 8, L: 2 * Ls + 2 * Math.PI * R };
 }
 
 // u: 内ラチ沿い 0..L (px) の位置, off: 外側への距離 (px)
@@ -161,32 +188,31 @@ function tracePath(off) {
 
 function drawTrack() {
   const { w, h, band } = G;
-  ctx.fillStyle = "#1a2e1f"; ctx.fillRect(0, 0, w, h);
-  // コース (帯) と内馬場
-  tracePath(band / 2 - 4); ctx.lineWidth = band; ctx.strokeStyle = DIRT ? "#a27c55" : "#3d8b45"; ctx.stroke();
-  tracePath(-6); ctx.fillStyle = "#24562b"; ctx.fill();
-  // ラチ
-  ctx.lineWidth = 2; ctx.strokeStyle = "#f4f4ef";
+  ctx.fillStyle = COLOR.ground; ctx.fillRect(0, 0, w, h);
+  tracePath(band / 2 - 4); ctx.lineWidth = band; ctx.strokeStyle = DIRT ? COLOR.dirt : COLOR.turf; ctx.stroke();
+  tracePath(-6); ctx.fillStyle = COLOR.turfIn; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = COLOR.rail;
   tracePath(-4); ctx.stroke(); tracePath(band - 4); ctx.stroke();
-  // 残り距離の標識とゴール板
-  ctx.font = "11px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  // 残り距離の標識
+  ctx.font = `${Math.round(11 * G.k + 1)}px ${NUM_FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   for (const m of [1000, 800, 600, 400, 200]) {
     if (m >= D) continue;
     const [x, y] = pointAt(uOf(D - m), -14);
-    ctx.fillStyle = "#f4f4ef"; ctx.fillText(String(m), x, y);
+    ctx.fillStyle = COLOR.rail; ctx.fillText(String(m), x, y);
   }
+  // ゴール板
   const [gx1, gy1] = pointAt(finishU(), -6), [gx2, gy2] = pointAt(finishU(), band - 2);
-  ctx.strokeStyle = "#ffd34d"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(gx1, gy1); ctx.lineTo(gx2, gy2); ctx.stroke();
+  ctx.strokeStyle = COLOR.accent; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(gx1, gy1); ctx.lineTo(gx2, gy2); ctx.stroke();
   const [lx, ly] = pointAt(finishU(), -18);
-  ctx.fillStyle = "#ffd34d"; ctx.font = "bold 12px sans-serif"; ctx.fillText("ゴール", lx, ly);
+  ctx.fillStyle = COLOR.accent; ctx.font = `bold ${Math.round(12 * G.k)}px sans-serif`; ctx.fillText("ゴール", lx, ly);
   // スタート地点
-  const [sx, sy] = pointAt(uOf(0), band + 10);
-  ctx.fillStyle = "#a9b8ab"; ctx.font = "11px sans-serif"; ctx.fillText("スタート", sx, sy);
+  let [sx, sy] = pointAt(uOf(0), band + 9);
+  sx = Math.min(Math.max(sx, 28), w - 28); sy = Math.min(Math.max(sy, 10), h - 8);
+  ctx.fillStyle = COLOR.muted; ctx.font = `${Math.round(11 * G.k)}px sans-serif`; ctx.fillText("スタート", sx, sy);
 }
 
-// ------------------------------------------------------------ 状態
-let simT = 0, playing = false, lastTs = null, nextEvent = 0;
-const lateral = new Array(N).fill(R_HORSE + 4);
+// ------------------------------------------------------------ 再生状態
+let simT = 0, playing = false, lastTs = null, nextEvent = 0, resultShown = false;
 const posAt = (i, t) => {
   const f = Math.min(t / DT, FRAMES - 1), k = Math.floor(f), a = f - k;
   return k + 1 < FRAMES ? P[i][k] * (1 - a) + P[i][k + 1] * a : P[i][k];
@@ -200,45 +226,44 @@ function updateLanes(dist) {
     const busy = new Set(placed.filter(j => dist[j] - dist[i] < 7).map(j => laneOf[j]));
     let lane = 0; while (busy.has(lane) && lane < LANES - 1) lane++;
     placed.push(i); laneOf[i] = lane;
-    const target = R_HORSE + 4 + lane * LANE_PX;
+    const target = G.rh + 4 + lane * G.lane;
     lateral[i] += (target - lateral[i]) * 0.12;
   }
   return order;
 }
 
 function drawHorses(dist, order) {
+  const rh = G.rh;
   for (const i of [...order].reverse()) {          // 後ろの馬から描いて先頭を上に
     const [x, y] = pointAt(uOf(Math.max(dist[i], 0)), lateral[i]);
     const h = H[i];
     if (h.mark) {
-      ctx.beginPath(); ctx.arc(x, y, R_HORSE + 3, 0, Math.PI * 2);
-      ctx.strokeStyle = "#ffd34d"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, rh + 3, 0, Math.PI * 2);
+      ctx.strokeStyle = COLOR.accent; ctx.lineWidth = 2; ctx.stroke();
     }
-    ctx.beginPath(); ctx.arc(x, y, R_HORSE, 0, Math.PI * 2);
+    ctx.beginPath(); ctx.arc(x, y, rh, 0, Math.PI * 2);
     ctx.fillStyle = h.bg; ctx.fill();
     ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.stroke();
-    ctx.fillStyle = h.fg; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = h.fg; ctx.font = `600 ${Math.round(12 * G.k)}px ${NUM_FONT}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(String(h.num), x, y + 0.5);
   }
 }
 
-// ------------------------------------------------------------ 順位表
+// ------------------------------------------------------------ 順位ボード
 const rowsEl = document.getElementById("rows");
-const rowEls = H.map(h => {
-  const el = document.createElement("div");
-  el.className = "row" + (h.mark === "◎" || h.stake > 0 ? " hl" : "");
-  el.innerHTML = `<span class="pos"></span><span class="num" style="background:${h.bg};color:${h.fg}">${h.num}</span>
-    <span class="mark">${h.mark}</span><span class="name" title="${h.name} (${h.style})">${h.name}</span><span class="gap"></span>`;
-  rowsEl.appendChild(el); return el;
-});
-rowsEl.style.minHeight = (N * 27) + "px";
-const marginText = (m) => {
-  const l = m / 2.4;
-  if (l < 0.15) return "ハナ"; if (l < 0.3) return "アタマ"; if (l < 0.45) return "クビ";
-  if (l < 0.65) return "1/2馬身"; if (l < 0.85) return "3/4馬身"; if (l >= 10) return "大差";
-  const whole = Math.floor(l + 0.25);
-  return whole + (l - whole >= 0.25 ? "½" : "") + "馬身";
-};
+function buildBoard() {
+  rowsEl.innerHTML = "";
+  rowEls = H.map(h => {
+    const el = document.createElement("div");
+    el.className = "row" + (h.mark === "◎" || h.stake > 0 ? " hl" : "");
+    const name = h.name.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    el.innerHTML = `<span class="pos"></span><span class="num" style="background:${h.bg};color:${h.fg}">${h.num}</span>
+      <span class="mark">${h.mark}</span><span class="name" title="${name} (${h.style})">${name}</span><span class="gap"></span>`;
+    rowsEl.appendChild(el); return el;
+  });
+  rowsEl.style.minHeight = (N * 27) + "px";
+}
 function updateBoard(dist) {
   // ゴールした馬は着順 (タイム順) で固定し、走行中の馬はその後ろに距離順で並べる
   const done = (i) => dist[i] >= D;
@@ -257,6 +282,7 @@ function updateBoard(dist) {
 // ------------------------------------------------------------ 実況
 const telop = document.getElementById("telop");
 const voice = document.getElementById("voice");
+const speed = () => Number(document.getElementById("speed").value);
 function say(text) {
   telop.style.opacity = 0;
   setTimeout(() => { telop.textContent = text; telop.style.opacity = 1; }, 120);
@@ -267,38 +293,36 @@ function say(text) {
     speechSynthesis.speak(u);
   }
 }
-const speed = () => Number(document.getElementById("speed").value);
 
 // ------------------------------------------------------------ 結果
+const resultEl = document.getElementById("result");
 function showResult() {
   const fin = [...H.keys()].sort((a, b) => H[a].time - H[b].time);
   const t0 = H[fin[0]].time;
   const fmt = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
-  let rows = fin.slice(0, 5).map((i, r) => {
+  const rows = fin.slice(0, 5).map((i, r) => {
     const h = H[i];
     const diff = r === 0 ? fmt(h.time) : marginText((h.time - H[fin[r - 1]].time) * D / t0);
     return `<tr><td>${r + 1}着</td><td><span class="num" style="display:inline-grid;background:${h.bg};color:${h.fg}">${h.num}</span></td>
-      <td>${h.mark} ${h.name}</td><td class="r">${diff}</td></tr>`;
+      <td>${h.mark} ${rowEls[i].querySelector(".name").innerHTML}</td><td class="r">${diff}</td></tr>`;
   }).join("");
   const w = H[fin[0]];
   let hit = "";
   const bets = H.filter(h => h.stake > 0);
   if (bets.length) {
     hit = w.stake > 0
-      ? `推奨馬券 的中！ 単勝 ${w.num}番 ${w.stake.toLocaleString()}円 → 払戻 ${(w.stake * w.odds).toLocaleString(undefined, {maximumFractionDigits: 0})}円`
-      : `推奨馬券 (${bets.map(b => b.num + "番").join("・")}) は不的中`;
+      ? `推奨馬券 的中！ 単勝 ${w.num}番 ${w.stake.toLocaleString()}円 → 払戻 ${Math.round(w.stake * w.odds).toLocaleString()}円`
+      : `推奨馬券 (単勝 ${bets.map(b => b.num + "番").join("・")}) は不的中`;
   }
   const label = RACE.mode === "replay" ? "確定着順" : "シミュレーション結果";
   document.getElementById("resultCard").innerHTML =
-    `<h3>${label}</h3><table>${rows}</table>${hit ? `<div class="hit">${hit}</div>` : ""}`;
-  document.getElementById("result").classList.add("show");
+    `<h3>${label}</h3><table>${rows}</table>${hit ? `<div class="hit">${hit}</div>` : ""}
+     <div class="close">タップで閉じる</div>`;
+  resultEl.classList.add("show");
 }
 
 // ------------------------------------------------------------ ループ
 const clockEl = document.getElementById("clock"), remainEl = document.getElementById("remain");
-const winT = Math.min(...H.map(h => h.time));
-let resultShown = false;
-
 function render() {
   const dist = H.map((_, i) => posAt(i, simT));
   const order = updateLanes(dist);
@@ -322,26 +346,47 @@ function tick(ts) {
 }
 
 const playBtn = document.getElementById("playBtn");
+const startOverlay = document.getElementById("startOverlay");
 function setPlaying(p) {
   playing = p; lastTs = null;
   playBtn.textContent = p ? "⏸ 一時停止" : "▶ 再生";
   if (!p && "speechSynthesis" in window) speechSynthesis.cancel();
 }
-playBtn.onclick = () => setPlaying(!playing);
-document.getElementById("resetBtn").onclick = () => {
+function restart(autoplay) {
   simT = 0; nextEvent = 0; resultShown = false;
-  document.getElementById("result").classList.remove("show");
-  telop.textContent = "ゲートインが完了しました。"; setPlaying(true);
-};
-document.getElementById("result").onclick = () => document.getElementById("result").classList.remove("show");
-document.getElementById("startBtn").onclick = () => {
-  document.getElementById("startOverlay").remove(); setPlaying(true);
-};
-setPlaying(false);
+  resultEl.classList.remove("show");
+  telop.textContent = "ゲートインが完了しました。";
+  lateral = new Array(N).fill(G.rh + 4);
+  setPlaying(autoplay);
+}
+playBtn.onclick = () => { startOverlay.hidden = true; setPlaying(!playing); };
+document.getElementById("resetBtn").onclick = () => { startOverlay.hidden = true; restart(true); };
+resultEl.onclick = () => resultEl.classList.remove("show");
+document.getElementById("startBtn").onclick = () => { startOverlay.hidden = true; setPlaying(true); };
+
+function load(idx) {
+  RACE = RACES[idx];
+  H = RACE.horses; N = H.length; D = RACE.distance; DT = RACE.dt; P = RACE.positions; FRAMES = P[0].length;
+  DIRT = RACE.title.includes("ダート");
+  winT = Math.min(...H.map(h => h.time));
+  document.getElementById("title").textContent = RACE.title;
+  document.getElementById("mode").textContent = modeLabel(RACE);
+  document.getElementById("dir").textContent = RACE.left_handed ? "左回り" : "右回り";
+  document.getElementById("note").textContent = RACE.note;
+  buildBoard();
+  startOverlay.hidden = false;
+  restart(false);
+}
+
+const raceSel = document.getElementById("raceSel");
+if (RACES.length > 1) {
+  RACES.forEach((r, i) => raceSel.add(new Option(`${r.title}・${modeLabel(r)}`, i)));
+  raceSel.hidden = false;
+  raceSel.onchange = () => load(Number(raceSel.value));
+}
 
 window.addEventListener("resize", layout);
 layout();
+load(0);
 requestAnimationFrame(tick);
 </script>
-</body>
-</html>

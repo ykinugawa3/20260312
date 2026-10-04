@@ -269,8 +269,8 @@ def commentary(race: pd.DataFrame, d: np.ndarray, t: np.ndarray, total: np.ndarr
     return events
 
 
-def render_html(script: dict) -> str:
-    """台本を埋め込んだ HTML を返す (Streamlit の components.html で表示する)."""
+def render_html(script: dict | list[dict]) -> str:
+    """台本 (複数ならレース切り替え付き) を埋め込んだ HTML を返す."""
     html = ASSET.read_text(encoding="utf-8")
     # </script> を含む馬名などでスクリプトが途切れないようにする
     data = json.dumps(script, ensure_ascii=False).replace("</", "<\\/")

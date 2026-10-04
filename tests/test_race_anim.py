@@ -88,6 +88,13 @@ def test_render_html_embeds_data_safely():
     race.loc[0, "horse_name"] = "</script><b>"
     html = race_anim.render_html(race_anim.replay_race(race))
     assert "__RACE_DATA__" not in html
-    data = html.split("const RACE = ", 1)[1].split(";\nconst H", 1)[0]
+    data = html.split("const DATA = ", 1)[1].split(";\nconst RACES", 1)[0]
     assert "</script>" not in data
     assert json.loads(data)["horses"][0]["name"] == "</script><b>"
+
+
+def test_render_html_accepts_multiple_races():
+    race = _race()
+    html = race_anim.render_html([race_anim.replay_race(race), race_anim.simulate_race(race, np.full(10, .1))])
+    data = html.split("const DATA = ", 1)[1].split(";\nconst RACES", 1)[0]
+    assert len(json.loads(data)) == 2
