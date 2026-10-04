@@ -25,5 +25,8 @@ keiba = "keiba.cli:main"
 [tool.setuptools]
 packages = ["keiba"]
 
+[tool.setuptools.package-data]
+keiba = ["assets/*.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

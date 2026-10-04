@@ -11,9 +11,10 @@ import altair as alt
 import numpy as np
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from sklearn.metrics import log_loss, roc_auc_score
 
-from keiba import backtest, db, importer, model, sample_data
+from keiba import backtest, db, importer, model, race_anim, sample_data
 from keiba.calibration import reliability_table
 from keiba.features import build_features
 
@@ -104,7 +105,7 @@ with st.sidebar:
 
 win_model = load_model(str(model_path), _mtime(model_path))
 
-tab_pred, tab_bt, tab_eval = st.tabs(["レース予想", "バックテスト", "モデル評価"])
+tab_pred, tab_live, tab_bt, tab_eval = st.tabs(["レース予想", "レース実況", "バックテスト", "モデル評価"])
 
 
 # ---------------------------------------------------------------- レース予想
@@ -175,6 +176,61 @@ with tab_pred:
         )
         st.caption("勝率 = モデルと市場を合成した較正後の勝率 / 期待値 = 勝率 × オッズ。"
                    "オッズは締切直前まで変わるため、購入前に最新オッズで再計算してください。")
+
+
+# ---------------------------------------------------------------- レース実況
+
+def _race_label(r: pd.Series) -> str:
+    return f"{r['course']} {int(r['race_number'])}R {r['surface']}{int(r['distance'])}m {r['race_class']}"
+
+
+with tab_live:
+    if win_model is None:
+        st.info("モデルがありません。サイドバーの「全期間で学習してモデルを保存」を押してください。")
+    else:
+        dates = sorted(features["date"].dt.date.unique(), reverse=True)
+        c1, c2, c3 = st.columns([1, 2, 1])
+        live_date = c1.selectbox("開催日", dates, key="live_date")
+        day = features[features["date"].dt.date == live_date]
+        heads = day.groupby("race_id").first().sort_values(["course", "race_number"])
+        live_race = c2.selectbox("レース", list(heads.index), format_func=lambda rid: _race_label(heads.loc[rid]),
+                                 key="live_race")
+        race = model.predict_races(win_model, day[day["race_id"] == live_race])
+        strategy = backtest.Strategy()
+        race["stake"] = 0.0
+        cands = backtest.select_candidates(race, strategy)
+        if not cands.empty:
+            race.loc[cands.index, "stake"] = backtest.stakes_for_race(cands, 100_000, strategy)
+
+        finished_race = bool(race["finished"].all() and race["time_sec"].notna().any())
+        modes = ["予想シミュレーション"] + (["結果リプレイ"] if finished_race else [])
+        mode = c3.radio("モード", modes, horizontal=True, key="live_mode")
+        if "live_seed" not in st.session_state:
+            st.session_state["live_seed"] = 0
+        if mode == "予想シミュレーション" and st.button("🎲 もう一度走らせる (別の展開を抽選)"):
+            st.session_state["live_seed"] += 1
+
+        if mode == "結果リプレイ":
+            script = race_anim.replay_race(race)
+        else:
+            script = race_anim.simulate_race(race, race["win_prob"].to_numpy(), seed=st.session_state["live_seed"])
+        components.html(race_anim.render_html(script), height=560, scrolling=True)
+        st.caption("馬の位置はデータからの近似です (前半は一定ペース、残り600mから上がり3Fのペース)。"
+                   "金色の輪 = 印の付いた馬。順位表の黄色 = 本命◎または推奨馬券の馬。資金10万円として推奨額を計算。")
+
+        if mode == "予想シミュレーション":
+            # 1,000 回走らせたときの勝利回数 (勝率どおりに勝つことの確認)
+            rng = np.random.default_rng(st.session_state["live_seed"])
+            p = race["win_prob"].to_numpy()
+            keys = np.log(np.clip(p, 1e-9, 1)) + rng.gumbel(size=(1000, len(p)))
+            wins = np.bincount(keys.argmax(axis=1), minlength=len(p))
+            sim = pd.DataFrame({
+                "印": race["mark"], "馬番": race["horse_number"], "馬名": race["horse_name"],
+                "予想勝率": race["win_prob"] * 100, "1000回中の勝利数": wins,
+            }).sort_values("1000回中の勝利数", ascending=False)
+            with st.expander("このレースを 1,000 回走らせると…"):
+                st.dataframe(sim, hide_index=True, width="stretch",
+                             column_config={"予想勝率": st.column_config.NumberColumn(format="%.1f%%")})
 
 
 # ---------------------------------------------------------------- バックテスト
