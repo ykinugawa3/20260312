@@ -82,7 +82,7 @@ body {
   background: #000;
   border-radius: 6px;
   touch-action: none;
-  cursor: pointer;
+  cursor: crosshair;
   image-rendering: pixelated;
 }
 .controls {
@@ -186,7 +186,7 @@ body {
   </div>
 
   <p class="help">
-    <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> または <kbd>WASD</kbd> で移動 ・ <kbd>ENTER</kbd> でスタート ・
+    マウスを画面に乗せるとその方向へ移動 ・ <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> / <kbd>WASD</kbd> でも移動 ・ <kbd>ENTER</kbd> でスタート ・
     <kbd>P</kbd> 一時停止 ・ <kbd>M</kbd> 音 ON/OFF<br>スマホは画面をスワイプするか、方向ボタンで操作
   </p>
   <div class="legend">
@@ -554,6 +554,20 @@ function eatAt(c, r) {
   if (G.dotsLeft === 0) { setState('clear'); sfx.clear(); }
 }
 
+let mouse = null; // cursor position in maze tiles, or null when not steering by mouse
+
+function steerToMouse() {
+  let dx = mouse.x - pac.x;
+  const dy = mouse.y - pac.y;
+  if (dx > 15) dx -= 30; else if (dx < -15) dx += 30; // shorter way through the tunnel
+  if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+  const h = dx > 0 ? RIGHT : LEFT, v = dy > 0 ? DOWN : UP;
+  const [first, second, secondLen] = Math.abs(dx) >= Math.abs(dy) ? [h, v, Math.abs(dy)] : [v, h, Math.abs(dx)];
+  const c = Math.round(pac.x), r = Math.round(pac.y);
+  if (open(c + first.x, r + first.y) || secondLen < 0.5 || !open(c + second.x, r + second.y)) pac.want = first;
+  else pac.want = second;
+}
+
 const MODES1 = [7, 20, 7, 20, 5, 20, 5, Infinity];
 const MODES2 = [5, 20, 5, 20, 5, 60, 1, Infinity];
 
@@ -607,6 +621,7 @@ function update(dt) {
   }
 
   // pac-man
+  if (mouse) steerToMouse();
   if (!pac.dir.x && !pac.dir.y && pac.want && atCenter(pac)) pacCenter(pac);
   if (pac.want && isRev(pac.want, pac.dir)) { pac.dir = pac.want; pac.face = pac.dir; }
   const pSpeed = BASE * (G.frightT > 0 ? sp.pacF : sp.pac);
@@ -803,6 +818,11 @@ function draw() {
     }
   }
 
+  if (mouse && G.state === 'play' && !G.paused) {
+    ctx.strokeStyle = 'rgba(255, 230, 0, 0.55)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(px(mouse.x), py(mouse.y), 5, 0, 7); ctx.stroke();
+  }
+
   for (const p of G.popups) {
     ctx.fillStyle = p.color;
     ctx.font = '8px "Press Start 2P", monospace';
@@ -872,7 +892,7 @@ const KEYS = {
   w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right',
 };
 window.addEventListener('keydown', e => {
-  if (KEYS[e.key]) { setWant(KEYS[e.key]); e.preventDefault(); return; }
+  if (KEYS[e.key]) { mouse = null; setWant(KEYS[e.key]); e.preventDefault(); return; }
   if (e.key === 'Enter' || e.key === ' ') {
     if (e.target.tagName === 'BUTTON') return;
     startOrResume(); e.preventDefault();
@@ -888,12 +908,22 @@ document.querySelectorAll('#pad button').forEach(b => {
   b.addEventListener('pointerdown', e => { e.preventDefault(); audio(); setWant(b.dataset.dir); });
 });
 
+// mouse: Pac-Man heads toward the cursor while it is over the screen
+function toMaze(e) {
+  const r = cv.getBoundingClientRect();
+  return {
+    x: ((e.clientX - r.left) / r.width) * SW / T - 0.5,
+    y: ((e.clientY - r.top) / r.height) * SH / T - OFF - 0.5,
+  };
+}
 let touch = null;
 cv.addEventListener('pointerdown', e => {
-  touch = {x: e.clientX, y: e.clientY};
+  if (e.pointerType === 'mouse') mouse = toMaze(e);
+  else touch = {x: e.clientX, y: e.clientY};
   if (G.state === 'title' || G.state === 'over') startOrResume();
 });
 cv.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse') { mouse = toMaze(e); return; }
   if (!touch) return;
   const dx = e.clientX - touch.x, dy = e.clientY - touch.y;
   if (Math.max(Math.abs(dx), Math.abs(dy)) < 18) return;
@@ -901,6 +931,7 @@ cv.addEventListener('pointermove', e => {
   touch = {x: e.clientX, y: e.clientY};
 });
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => cv.addEventListener(n, () => (touch = null)));
+cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') mouse = null; });
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && G.state === 'play' && !G.paused) togglePause();
