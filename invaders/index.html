@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pixel Invaders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
+<style>
+  /* Layout: one arcade cabinet column — marquee, CRT screen with colored overlay bands, control deck. Single dark look by design. */
+  :root {
+    --ink: #07080e;        /* room around the cabinet */
+    --cabinet: #12141f;    /* cabinet body and buttons */
+    --bezel: #1d2131;      /* screen frame, button edges */
+    --phosphor: #e4ecff;   /* white phosphor */
+    --band-red: #ff5a6e;   /* top overlay band (UFO lane) */
+    --band-green: #52f58f; /* bottom overlay band (shields, cannon) */
+    --dim: #8a90a8;        /* captions */
+    --font: "DotGothic16", "MS Gothic", "Osaka-Mono", ui-monospace, monospace;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--phosphor);
+    font-family: var(--font);
+    padding-inline: 16px;
+    display: flex;
+    justify-content: center;
+    --chrome: 150px;
+  }
+  @media (hover: none), (pointer: coarse) { body { --chrome: 270px; } }
+  .cabinet {
+    width: min(100%, 560px, max(240px, calc((100dvh - var(--chrome)) * 0.875)));
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-block: 16px;
+  }
+  .marquee {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .marquee h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: var(--band-green);
+  }
+  .marquee h1 span { color: var(--band-red); }
+  .tools { display: flex; gap: 8px; }
+  button {
+    font: inherit;
+    color: var(--phosphor);
+    background: var(--cabinet);
+    border: 1px solid var(--bezel);
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: none;
+  }
+  button:hover { border-color: var(--dim); }
+  button:focus-visible { outline: 2px solid var(--band-green); outline-offset: 2px; }
+  .screen {
+    position: relative;
+    background: #000;
+    border: 10px solid var(--bezel);
+    border-radius: 16px;
+    box-shadow: 0 0 0 1px #000, 0 18px 40px -20px #000;
+    overflow: hidden;
+  }
+  .screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0, 0, 0, 0.22) 2px 3px);
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 224 / 256;
+    image-rendering: pixelated;
+    touch-action: none;
+  }
+  .keys {
+    margin: 0;
+    color: var(--dim);
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+  }
+  .keys kbd {
+    font: inherit;
+    color: var(--phosphor);
+    border: 1px solid var(--bezel);
+    border-radius: 4px;
+    padding: 0 5px;
+  }
+  .pad {
+    display: none;
+    grid-template-columns: 1fr 1fr 1.4fr;
+    gap: 10px;
+  }
+  .pad button {
+    min-height: 72px;
+    font-size: 1.4rem;
+    border-radius: 12px;
+  }
+  .pad button.active { background: var(--bezel); border-color: var(--dim); }
+  #btn-fire { color: var(--band-red); border-color: var(--band-red); }
+  @media (hover: none), (pointer: coarse) {
+    .pad { display: grid; }
+    .keys { display: none; }
+  }
+</style>
+</head>
+<body>
+<main class="cabinet">
+  <header class="marquee">
+    <h1>PIXEL <span>INVADERS</span></h1>
+    <div class="tools">
+      <button id="btn-sound" type="button">音 ON</button>
+      <button id="btn-pause" type="button">一時停止</button>
+    </div>
+  </header>
+  <div class="screen"><canvas id="screen" aria-label="インベーダーゲームの画面"></canvas></div>
+  <p class="keys">
+    <span><kbd>←</kbd> <kbd>→</kbd> 移動</span>
+    <span><kbd>SPACE</kbd> 発射</span>
+    <span><kbd>ENTER</kbd> スタート</span>
+    <span><kbd>P</kbd> 一時停止</span>
+    <span><kbd>M</kbd> 音</span>
+  </p>
+  <div class="pad">
+    <button id="btn-left" type="button" aria-label="左へ移動">◀</button>
+    <button id="btn-right" type="button" aria-label="右へ移動">▶</button>
+    <button id="btn-fire" type="button">発射</button>
+  </div>
+</main>
+<script>
+(() => {
+  // ---- screen ----------------------------------------------------------
+  const W = 224, H = 256, S = 3;          // original arcade resolution, drawn at 3x
+  const PLAYER_Y = 216, GROUND_Y = 239;
+  const cv = document.getElementById('screen');
+  cv.width = W * S; cv.height = H * S;
+  const ctx = cv.getContext('2d');
+  const css = getComputedStyle(document.documentElement);
+  const col = (name, fb) => css.getPropertyValue(name).trim() || fb;
+  const COLORS = {
+    ph: col('--phosphor', '#e4ecff'),
+    red: col('--band-red', '#ff5a6e'),
+    green: col('--band-green', '#52f58f'),
+  };
+
+  // ---- sprites ---------------------------------------------------------
+  function sprite(rows) {
+    const c = document.createElement('canvas');
+    c.width = rows[0].length; c.height = rows.length;
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff';
+    rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '#') g.fillRect(x, y, 1, 1); }));
+    return c;
+  }
+  const SPR = {
+    squid: [sprite([
+      '...##...', '..####..', '.######.', '##.##.##', '########', '..#..#..', '.#.##.#.', '#.#..#.#',
+    ]), sprite([
+      '...##...', '..####..', '.######.', '##.##.##', '########', '.#.##.#.', '#......#', '.#....#.',
+    ])],
+    crab: [sprite([
+      '..#.....#..', '...#...#...', '..#######..', '.##.###.##.', '###########', '#.#######.#', '#.#.....#.#', '...##.##...',
+    ]), sprite([
+      '..#.....#..', '#..#...#..#', '#.#######.#', '###.###.###', '###########', '.#########.', '..#.....#..', '.#.......#.',
+    ])],
+    octo: [sprite([
+      '....####....', '.##########.', '############', '###..##..###', '############', '...##..##...', '..##.##.##..', '##........##',
+    ]), sprite([
+      '....####....', '.##########.', '############', '###..##..###', '############', '..###..###..', '.##..##..##.', '..##....##..',
+    ])],
+    player: sprite([
+      '......#......', '.....###.....', '.....###.....', '.###########.', '#############', '#############', '#############', '#############',
+    ]),
+    playerBoom: [sprite([
+      '....#........', '.......#..#..', '..#.#..#.....', '....##....#..', '#..######....', '..#########..', '.###########.', '#############',
+    ]), sprite([
+      '#.....#....#.', '...#.....#...', '#...#.#.....#', '...##.#.#....', '.#.#####..#..', '..#######.#..', '.#########...', '###.####.####',
+    ])],
+    ufo: sprite([
+      '.....######.....', '...##########...', '..############..', '.##.##.##.##.##.', '################', '..###..##..###..', '...#........#...',
+    ]),
+    boom: sprite([
+      '....#...#....', '.#...#.#...#.', '..#.......#..', '...#.....#...', '##.........##', '...#.....#...', '..#..#.#..#..', '.#...#.#...#.',
+    ]),
+    shotBoom: sprite(['#...#.#.', '..#####.', '.######.', '#.####.#', '.######.', '..#..##.']),
+  };
+  const TYPES = [
+    { spr: SPR.squid, w: 8, off: 2, pts: 30 },
+    { spr: SPR.crab, w: 11, off: 0, pts: 20 },
+    { spr: SPR.octo, w: 12, off: 0, pts: 10 },
+  ];
+  // Mystery ship score follows the shot counter, like the arcade original.
+  const UFO_TABLE = [100, 50, 50, 100, 150, 100, 100, 50, 300, 100, 100, 100, 50, 150, 100];
+
+  // ---- shields ---------------------------------------------------------
+  const SHIELD_ROWS = [
+    '....##############....', '...################...', '..##################..', '.####################.',
+    '######################', '######################', '######################', '######################',
+    '######################', '######################', '######################', '######################',
+    '#######........#######', '######..........######', '#####............#####', '#####............#####',
+  ];
+  const SW = 22, SH = 16, SHIELD_Y = 192;
+  function makeShields() {
+    return [32, 77, 122, 167].map(x => {
+      const bits = new Uint8Array(SW * SH);
+      SHIELD_ROWS.forEach((r, y) => [...r].forEach((ch, xx) => { bits[y * SW + xx] = ch === '#' ? 1 : 0; }));
+      const c = document.createElement('canvas');
+      c.width = SW; c.height = SH;
+      const s = { x, y: SHIELD_Y, bits, c, dirty: true };
+      return s;
+    });
+  }
+  function shieldCanvas(s) {
+    if (!s.dirty) return s.c;
+    const g = s.c.getContext('2d');
+    const img = g.createImageData(SW, SH);
+    for (let i = 0; i < s.bits.length; i++) {
+      if (s.bits[i]) { img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = img.data[i * 4 + 3] = 255; }
+    }
+    g.putImageData(img, 0, 0);
+    s.dirty = false;
+    return s.c;
+  }
+  function shieldAt(px, py) {
+    for (const s of shields) {
+      const lx = Math.floor(px - s.x), ly = Math.floor(py - s.y);
+      if (lx >= 0 && lx < SW && ly >= 0 && ly < SH && s.bits[ly * SW + lx]) return { s, lx, ly };
+    }
+    return null;
+  }
+  function erode(hit, r) {
+    const { s, lx, ly } = hit;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const x = lx + dx, y = ly + dy;
+      if (x < 0 || x >= SW || y < 0 || y >= SH) continue;
+      const d = dx * dx + dy * dy;
+      if (d === 0 || (d <= r * r && Math.random() < 0.65)) s.bits[y * SW + x] = 0;
+    }
+    s.dirty = true;
+  }
+  function eraseUnder(inv) {
+    const t = TYPES[inv.t];
+    for (const s of shields) {
+      const x0 = Math.max(0, inv.x - s.x), x1 = Math.min(SW, inv.x + t.w - s.x);
+      const y0 = Math.max(0, inv.y - s.y), y1 = Math.min(SH, inv.y + 8 - s.y);
+      if (x0 >= x1 || y0 >= y1) continue;
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) s.bits[y * SW + x] = 0;
+      s.dirty = true;
+    }
+  }
+
+  // ---- sound -----------------------------------------------------------
+  let ac = null, muted = false, ufoVoice = null;
+  function initAudio() {
+    try {
+      if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === 'suspended') ac.resume();
+    } catch (e) { ac = null; }
+  }
+  function tone(freq, dur, type, vol, slideTo) {
+    if (!ac || muted) return;
+    const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function noise(dur, vol, cutoff) {
+    if (!ac || muted) return;
+    const t = ac.currentTime, len = Math.floor(ac.sampleRate * dur);
+    const buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = buf; f.type = 'lowpass'; f.frequency.value = cutoff;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(ac.destination); src.start(t);
+  }
+  const sfx = {
+    shoot: () => tone(1100, 0.11, 'square', 0.04, 220),
+    kill: () => noise(0.22, 0.18, 2800),
+    march: n => tone([98, 87, 78, 73][n], 0.08, 'square', 0.1),
+    die: () => noise(1.0, 0.25, 800),
+    ufoHit: () => tone(1400, 0.5, 'sawtooth', 0.05, 180),
+    extra: () => { tone(880, 0.12, 'square', 0.05); setTimeout(() => tone(1320, 0.18, 'square', 0.05), 120); },
+  };
+  function ufoSound(on) {
+    if (on && !ufoVoice && ac && !muted) {
+      const o = ac.createOscillator(), lfo = ac.createOscillator(), lg = ac.createGain(), g = ac.createGain();
+      o.type = 'square'; o.frequency.value = 620;
+      lfo.frequency.value = 7; lg.gain.value = 160;
+      g.gain.value = 0.025;
+      lfo.connect(lg).connect(o.frequency); o.connect(g).connect(ac.destination);
+      o.start(); lfo.start();
+      ufoVoice = { o, lfo };
+    } else if (!on && ufoVoice) {
+      ufoVoice.o.stop(); ufoVoice.lfo.stop(); ufoVoice = null;
+    }
+  }
+
+  // ---- high score --------------------------------------------------------
+  const HI_KEY = 'pixel-invaders-hi';
+  function loadHi() { try { return parseInt(localStorage.getItem(HI_KEY), 10) || 0; } catch (e) { return 0; } }
+  function saveHi() { try { localStorage.setItem(HI_KEY, String(hi)); } catch (e) { /* storage unavailable */ } }
+
+  // ---- input -------------------------------------------------------------
+  const keys = { left: false, right: false, fire: false };
+  const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Space: 'fire', ArrowUp: 'fire', KeyZ: 'fire' };
+  addEventListener('keydown', e => {
+    initAudio();
+    const k = KEYMAP[e.code];
+    if (k) { keys[k] = true; e.preventDefault(); }
+    if (e.code === 'Enter' || (e.code === 'Space' && !e.repeat)) startOrRestart();
+    if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
+    if (e.code === 'KeyM') toggleSound();
+  });
+  addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) keys[k] = false; });
+  addEventListener('blur', () => { keys.left = keys.right = keys.fire = false; if (state !== 'pause' && isPlaying()) togglePause(); });
+
+  function hold(id, key) {
+    const b = document.getElementById(id);
+    const on = e => { e.preventDefault(); initAudio(); keys[key] = true; b.classList.add('active'); if (key === 'fire') startOrRestart(); };
+    const off = () => { keys[key] = false; b.classList.remove('active'); };
+    b.addEventListener('pointerdown', on);
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => b.addEventListener(ev, off));
+    b.addEventListener('contextmenu', e => e.preventDefault());
+  }
+  hold('btn-left', 'left'); hold('btn-right', 'right'); hold('btn-fire', 'fire');
+  cv.addEventListener('pointerdown', () => { initAudio(); startOrRestart(); });
+  const btnSound = document.getElementById('btn-sound');
+  const btnPause = document.getElementById('btn-pause');
+  btnSound.addEventListener('click', () => { initAudio(); toggleSound(); });
+  btnPause.addEventListener('click', () => { initAudio(); togglePause(); });
+  function toggleSound() {
+    muted = !muted;
+    if (muted) ufoSound(false); else if (ufo && state === 'play') ufoSound(true);
+    btnSound.textContent = muted ? '音 OFF' : '音 ON';
+  }
+
+  // ---- game state --------------------------------------------------------
+  let state = 'title', pausedFrom = null, tick = 0, timer = 0;
+  let score = 0, hi = loadHi(), lives = 3, wave = 1, extraGiven = false, shots = 0, invaded = false;
+  let player, pBullet, eBullets, inv, sweepList, sp, dir, dropping, freeze, ufo, ufoTimer, eReload, marchNote;
+  let effects = [], popups = [], shields = makeShields();
+
+  const isPlaying = () => ['play', 'ready', 'dying', 'clear'].includes(state);
+  function startOrRestart() {
+    if (state === 'title' || (state === 'over' && timer > 60)) newGame();
+  }
+  function togglePause() {
+    if (state === 'pause') { state = pausedFrom; btnPause.textContent = '一時停止'; if (ufo) ufoSound(true); }
+    else if (isPlaying()) { pausedFrom = state; state = 'pause'; ufoSound(false); btnPause.textContent = '再開'; }
+  }
+  function newGame() {
+    score = 0; lives = 3; wave = 1; extraGiven = false; shots = 0; invaded = false;
+    startWave();
+  }
+  function startWave() {
+    shields = makeShields();
+    const top = 64 + Math.min(wave - 1, 6) * 8;
+    inv = [];
+    for (let r = 4; r >= 0; r--) for (let c = 0; c < 11; c++) {
+      const t = r === 0 ? 0 : r < 3 ? 1 : 2;
+      inv.push({ t, c, x: 24 + c * 16 + TYPES[t].off, y: top + r * 16, alive: true, f: 0 });
+    }
+    player = { x: 8 };
+    pBullet = null; eBullets = []; effects = []; popups = [];
+    ufo = null; ufoTimer = 1500; eReload = 90; freeze = 0; marchNote = 0;
+    dir = 1; dropping = false; sweepList = []; sp = 0;
+    state = 'ready'; timer = 90;
+  }
+  function addScore(n) {
+    score += n;
+    if (!extraGiven && score >= 1500) { extraGiven = true; lives++; sfx.extra(); }
+    if (score > hi) hi = score;
+  }
+  const aliveList = () => inv.filter(i => i.alive);
+
+  // The formation moves one invader per frame, so it speeds up as it thins out.
+  function beginSweep() {
+    const alive = aliveList();
+    if (!alive.length) return;
+    let minX = Infinity, maxX = -Infinity;
+    for (const i of alive) { minX = Math.min(minX, i.x); maxX = Math.max(maxX, i.x + TYPES[i.t].w); }
+    if (!dropping && ((dir > 0 && maxX + 2 > W - 8) || (dir < 0 && minX - 2 < 8))) { dropping = true; dir = -dir; }
+    else dropping = false;
+    sweepList = alive; sp = 0;
+    sfx.march(marchNote); marchNote = (marchNote + 1) % 4;
+  }
+  function stepFormation() {
+    if (freeze > 0) { freeze--; return; }
+    const moves = wave >= 4 ? 2 : 1;
+    for (let m = 0; m < moves; m++) {
+      while (sp < sweepList.length && !sweepList[sp].alive) sp++;
+      if (sp >= sweepList.length) {
+        beginSweep();
+        while (sp < sweepList.length && !sweepList[sp].alive) sp++;
+        if (sp >= sweepList.length) return;
+      }
+      const i = sweepList[sp++];
+      if (dropping) i.y += 8; else i.x += 2 * dir;
+      i.f ^= 1;
+      eraseUnder(i);
+      if (i.y + 8 >= PLAYER_Y) { invaded = true; killPlayer(); return; }
+    }
+  }
+
+  function killPlayer() {
+    state = 'dying'; timer = 120;
+    pBullet = null; eBullets = [];
+    ufo = null; ufoSound(false);
+    sfx.die();
+  }
+
+  function enemyFire() {
+    const alive = aliveList();
+    if (--eReload > 0 || !alive.length) return;
+    const maxShots = wave === 1 ? 2 : 3;
+    if (eBullets.length >= maxShots) return;
+    const bottom = {};
+    for (const i of alive) if (!bottom[i.c] || i.y > bottom[i.c].y) bottom[i.c] = i;
+    const shooters = Object.values(bottom);
+    const px = player.x + 6;
+    let s;
+    if (Math.random() < 0.45) {
+      s = shooters.reduce((a, b) => Math.abs(b.x + 6 - px) < Math.abs(a.x + 6 - px) ? b : a);
+    } else {
+      s = shooters[Math.floor(Math.random() * shooters.length)];
+    }
+    eBullets.push({ x: Math.round(s.x + TYPES[s.t].w / 2), y: s.y + 8, v: Math.min(1.4 + wave * 0.12, 2.6), k: Math.floor(Math.random() * 3) });
+    eReload = Math.max(16, 56 - wave * 6) - (alive.length < 15 ? 10 : 0);
+  }
+
+  function updatePlay() {
+    // cannon
+    if (keys.left) player.x -= 1.25;
+    if (keys.right) player.x += 1.25;
+    player.x = Math.max(8, Math.min(W - 8 - 13, player.x));
+    if (keys.fire && !pBullet) {
+      pBullet = { x: Math.round(player.x) + 6, y: PLAYER_Y - 4 };
+      shots++; sfx.shoot();
+    }
+
+    // player shot, moved one pixel at a time so nothing is skipped
+    if (pBullet) {
+      for (let step = 0; step < 4 && pBullet; step++) {
+        pBullet.y -= 1;
+        const { x, y } = pBullet;
+        if (y < 32) { effects.push({ spr: SPR.shotBoom, x: x - 4, y: 32, t: 16 }); pBullet = null; break; }
+        const hit = shieldAt(x, y);
+        if (hit) { erode(hit, 2); pBullet = null; break; }
+        for (const i of inv) {
+          if (!i.alive) continue;
+          const w = TYPES[i.t].w;
+          if (x >= i.x && x < i.x + w && y >= i.y && y < i.y + 8) {
+            i.alive = false; addScore(TYPES[i.t].pts); sfx.kill();
+            effects.push({ spr: SPR.boom, x: i.x + w / 2 - 6, y: i.y, t: 16 });
+            freeze = 6; pBullet = null; break;
+          }
+        }
+        if (!pBullet) break;
+        if (ufo && x >= ufo.x && x < ufo.x + 16 && y >= ufo.y && y < ufo.y + 7) {
+          const pts = UFO_TABLE[shots % 15];
+          addScore(pts); sfx.ufoHit();
+          popups.push({ text: String(pts), x: ufo.x + 8, y: ufo.y, t: 70 });
+          ufo = null; ufoTimer = 1500; ufoSound(false);
+          pBullet = null; break;
+        }
+        for (let b = eBullets.length - 1; b >= 0; b--) {
+          const e = eBullets[b];
+          if (Math.abs(e.x - x) <= 1 && y >= e.y && y <= e.y + 7) {
+            eBullets.splice(b, 1);
+            effects.push({ spr: SPR.shotBoom, x: x - 4, y: y - 2, t: 10 });
+            pBullet = null; break;
+          }
+        }
+      }
+    }
+
+    stepFormation();
+    if (state !== 'play') return;
+    enemyFire();
+
+    // invader shots
+    for (let b = eBullets.length - 1; b >= 0; b--) {
+      const e = eBullets[b];
+      const from = Math.floor(e.y + 7);
+      e.y += e.v;
+      const to = Math.floor(e.y + 7);
+      let gone = false;
+      for (let ty = from + 1; ty <= to && !gone; ty++) {
+        const hit = shieldAt(e.x, ty);
+        if (hit) { erode(hit, 3); gone = true; break; }
+        if (ty >= PLAYER_Y + 1 && ty < PLAYER_Y + 8 && e.x >= player.x && e.x < player.x + 13) { killPlayer(); return; }
+        if (ty >= GROUND_Y) { effects.push({ spr: SPR.shotBoom, x: e.x - 4, y: GROUND_Y - 6, t: 12 }); gone = true; }
+      }
+      if (gone) eBullets.splice(b, 1);
+    }
+
+    // mystery ship
+    const aliveCount = aliveList().length;
+    if (!ufo) {
+      if (--ufoTimer <= 0 && aliveCount >= 8) {
+        const d = shots % 2 ? 1 : -1;
+        ufo = { x: d > 0 ? -16 : W, y: 40, d };
+        ufoSound(true);
+      }
+    } else {
+      ufo.x += 0.6 * ufo.d;
+      if (ufo.x < -16 || ufo.x > W) { ufo = null; ufoTimer = 1500; ufoSound(false); }
+    }
+
+    if (aliveCount === 0) { state = 'clear'; timer = 120; ufo = null; ufoSound(false); eBullets = []; }
+  }
+
+  function update() {
+    tick++;
+    for (const f of effects) f.t--;
+    effects = effects.filter(f => f.t > 0);
+    for (const p of popups) p.t--;
+    popups = popups.filter(p => p.t > 0);
+
+    switch (state) {
+      case 'ready':
+        if (--timer <= 0) state = 'play';
+        break;
+      case 'play':
+        updatePlay();
+        break;
+      case 'dying':
+        if (--timer <= 0) {
+          lives = invaded ? 0 : lives - 1;
+          if (lives <= 0) { state = 'over'; timer = 0; saveHi(); }
+          else { state = 'play'; player.x = 8; eReload = 60; }
+        }
+        break;
+      case 'clear':
+        if (--timer <= 0) { wave++; startWave(); }
+        break;
+      case 'over':
+        timer++;
+        break;
+    }
+  }
+
+  // ---- drawing -----------------------------------------------------------
+  function text(str, x, y, align = 'left', size = 8) {
+    ctx.font = `${size}px "DotGothic16", monospace`;
+    ctx.textAlign = align;
+    ctx.fillText(str, x, y);
+  }
+  const pad5 = n => String(n).padStart(5, '0');
+  const blit = (spr, x, y) => ctx.drawImage(spr, Math.round(x), Math.round(y));
+
+  function drawEnemyShot(e) {
+    const x = e.x, y = Math.round(e.y), f = (tick >> 2) % 4;
+    if (e.k === 0) {            // zigzag
+      for (let i = 0; i < 7; i++) ctx.fillRect(x + (((i + f) % 4) < 2 ? -1 : 1) * ((i + f) % 2), y + i, 1, 1);
+    } else if (e.k === 1) {     // plunger
+      ctx.fillRect(x, y, 1, 7); ctx.fillRect(x - 1, y + (f * 2) % 7, 3, 1);
+    } else {                    // twister
+      ctx.fillRect(x, y, 1, 7); ctx.fillRect(x + (f % 2 ? 1 : -1), y + 2 + (f % 3), 1, 2);
+    }
+  }
+
+  function drawHud() {
+    text('SCORE', 8, 6); text(pad5(score), 8, 16);
+    text('HI-SCORE', W / 2, 6, 'center'); text(pad5(hi), W / 2, 16, 'center');
+    text('WAVE', W - 8, 6, 'right'); text(String(wave), W - 8, 16, 'right');
+    ctx.fillRect(0, GROUND_Y, W, 1);
+    if (state !== 'title') {
+      text(String(Math.max(lives, 0)), 8, 242);
+      for (let i = 0; i < Math.min(lives - 1, 5); i++) blit(SPR.player, 22 + i * 16, 244);
+    }
+  }
+
+  function drawTitle() {
+    const f = (tick >> 5) & 1;
+    text('PIXEL INVADERS', W / 2, 60, 'center', 16);
+    text('— スコア表 —', W / 2, 92, 'center');
+    const rows = [[SPR.ufo, '= ? ミステリー'], [SPR.squid[f], '= 30 点'], [SPR.crab[f], '= 20 点'], [SPR.octo[f], '= 10 点']];
+    rows.forEach(([spr, label], i) => {
+      const y = 110 + i * 16;
+      blit(spr, 76 - spr.width / 2, y);
+      text(label, 92, y);
+    });
+    if ((tick >> 5) % 2 === 0) text('ENTER か タップでスタート', W / 2, 186, 'center');
+    text('1500点で 砲台が1台ふえる', W / 2, 206, 'center');
+  }
+
+  function drawGame() {
+    for (const s of shields) ctx.drawImage(shieldCanvas(s), s.x, s.y);
+    for (const i of inv) if (i.alive) blit(TYPES[i.t].spr[i.f], i.x, i.y);
+    if (ufo) blit(SPR.ufo, ufo.x, ufo.y);
+    for (const f of effects) blit(f.spr, f.x, f.y);
+    for (const p of popups) text(p.text, p.x, p.y, 'center');
+    if (state === 'dying') blit(SPR.playerBoom[(tick >> 3) & 1], player.x, PLAYER_Y);
+    else if (state !== 'over' || lives > 0) blit(SPR.player, player.x, PLAYER_Y);
+    if (pBullet) ctx.fillRect(pBullet.x, pBullet.y, 1, 4);
+    for (const e of eBullets) drawEnemyShot(e);
+
+    const banner = (a, b) => {
+      ctx.fillStyle = '#000'; ctx.fillRect(40, 100, W - 80, b ? 40 : 26); ctx.fillStyle = '#fff';
+      text(a, W / 2, 108, 'center');
+      if (b) text(b, W / 2, 122, 'center');
+    };
+    if (state === 'ready') banner(`WAVE ${wave}`, 'READY');
+    if (state === 'clear') banner(`WAVE ${wave} CLEAR`);
+    if (state === 'pause') banner('PAUSE', 'P か ボタンで再開');
+    if (state === 'over') banner('GAME OVER', timer > 60 && (tick >> 5) % 2 === 0 ? 'ENTER か タップで再挑戦' : '');
+  }
+
+  function draw() {
+    ctx.setTransform(S, 0, 0, S, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff'; ctx.textBaseline = 'top';
+    drawHud();
+    if (state === 'title') drawTitle(); else drawGame();
+
+    // Colored cellophane strips over a white monitor, as on the 1978 cabinet.
+    ctx.globalCompositeOperation = 'multiply';
+    const band = (y0, y1, c) => { ctx.fillStyle = c; ctx.fillRect(0, y0, W, y1 - y0); };
+    band(0, 32, COLORS.ph); band(32, 56, COLORS.red); band(56, 184, COLORS.ph);
+    band(184, 240, COLORS.green); band(240, H, COLORS.ph);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // ---- loop (fixed 60 Hz step) -------------------------------------------
+  let last = performance.now(), acc = 0;
+  const STEP = 1000 / 60;
+  function frame(now) {
+    acc += Math.min(now - last, 100);
+    last = now;
+    while (acc >= STEP) {
+      if (state !== 'pause') update();
+      acc -= STEP;
+    }
+    draw();
+    requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden && isPlaying()) togglePause(); });
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
