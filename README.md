@@ -1,5 +1,7 @@
 # 競馬予想ソフト 企画案
 
+> 同じリポジトリの [`stock/`](stock/README.md) に米国株の株価予想ソフト (企画案: [`STOCK_PROPOSAL.md`](STOCK_PROPOSAL.md)) がある。
+
 ## Windows での使い方 (ダブルクリック)
 
 1. [Python](https://www.python.org/downloads/) 3.10 以上をインストールする
