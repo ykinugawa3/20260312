@@ -1,5 +1,7 @@
 # 競馬予想ソフト 企画案
 
+> 別ツール: マクロ開発の仕様書を質問形式で作る Excel マクロは [`macro/spec_wizard/`](macro/spec_wizard/README.md) を参照。
+
 ## Windows での使い方 (ダブルクリック)
 
 1. [Python](https://www.python.org/downloads/) 3.10 以上をインストールする
