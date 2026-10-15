@@ -23,7 +23,7 @@ ui = ["streamlit>=1.40", "altair>=5"]
 keiba = "keiba.cli:main"
 
 [tool.setuptools]
-packages = ["keiba"]
+packages = ["keiba", "todo"]
 
 [tool.setuptools.package-data]
 keiba = ["assets/*.html"]

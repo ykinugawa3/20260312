@@ -1,5 +1,7 @@
 # 競馬予想ソフト 企画案
 
+> このリポジトリには TODO アプリも同梱しています → [todo/README.md](todo/README.md) (`start_todo.bat` で起動)
+
 ## Windows での使い方 (ダブルクリック)
 
 1. [Python](https://www.python.org/downloads/) 3.10 以上をインストールする
