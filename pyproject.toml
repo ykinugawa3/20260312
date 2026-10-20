@@ -17,7 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
-ui = ["streamlit>=1.40", "altair>=5"]
+ui = ["streamlit>=1.40", "altair>=5", "anthropic>=1.17"]
 
 [project.scripts]
 keiba = "keiba.cli:main"
