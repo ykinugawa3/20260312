@@ -1,5 +1,8 @@
 # 競馬予想ソフト 企画案
 
+> このリポジトリには戦国シミュレーション「天下布武 Lite」も入っている。
+> 遊び方は [`sengoku/README.md`](sengoku/README.md) (Windows は `sengoku_setup.bat` → `sengoku_start.bat`)。
+
 ## Windows での使い方 (ダブルクリック)
 
 1. [Python](https://www.python.org/downloads/) 3.10 以上をインストールする
