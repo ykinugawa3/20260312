@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>歴史神経衰弱</title>
+<style>
+  :root {
+    --bg: #f4efe6;
+    --panel: #fffaf2;
+    --ink: #2b2620;
+    --muted: #7a6f62;
+    --accent: #a33b2b;
+    --back: #3d4f6b;
+    --back-line: #5a7096;
+    --year-face: #fff4d6;
+    --year-ink: #8a4b00;
+    --event-face: #e9f2ec;
+    --event-ink: #24493a;
+    --matched: #9bbf8a;
+    --shadow: 0 2px 6px rgba(0, 0, 0, .18);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif;
+  }
+  header {
+    padding: 16px;
+    text-align: center;
+  }
+  h1 { margin: 0 0 4px; font-size: 1.6rem; letter-spacing: .1em; }
+  header p { margin: 0; color: var(--muted); font-size: .9rem; }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    justify-content: center;
+    align-items: center;
+    padding: 0 16px 12px;
+  }
+  .controls label { font-size: .9rem; }
+  select, button {
+    font: inherit;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #c9bda9;
+    background: var(--panel);
+    color: var(--ink);
+  }
+  button.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    justify-content: center;
+    padding: 0 16px 12px;
+    font-size: .95rem;
+  }
+  .status .player { padding: 2px 10px; border-radius: 12px; }
+  .status .player.active { background: var(--accent); color: #fff; }
+
+  .board {
+    display: grid;
+    gap: 10px;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 16px 24px;
+    grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr));
+  }
+  .card {
+    aspect-ratio: 3 / 4;
+    perspective: 800px;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+    background: none;
+  }
+  .card:disabled { cursor: default; }
+  .inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform .45s;
+    transform-style: preserve-3d;
+  }
+  .card.flipped .inner, .card.matched .inner { transform: rotateY(180deg); }
+  .face {
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    backface-visibility: hidden;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    text-align: center;
+  }
+  .back {
+    background:
+      repeating-linear-gradient(45deg, var(--back) 0 8px, var(--back-line) 8px 10px);
+    border: 4px solid #fff;
+    color: #fff;
+    font-size: 1.6rem;
+    font-weight: bold;
+  }
+  .back span {
+    background: var(--back);
+    border-radius: 50%;
+    width: 2.2em;
+    height: 2.2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .front { transform: rotateY(180deg); }
+  .front .tag {
+    font-size: .65rem;
+    letter-spacing: .1em;
+    opacity: .7;
+    margin-bottom: 4px;
+  }
+  .front.year { background: var(--year-face); color: var(--year-ink); border: 2px solid #e2c27a; }
+  .front.year .value { font-size: clamp(1.1rem, 4vw, 2rem); font-weight: bold; }
+  .front.event { background: var(--event-face); color: var(--event-ink); border: 2px solid #9cc2ab; }
+  .front.event .value { font-size: clamp(.68rem, 1.9vw, .95rem); line-height: 1.35; font-weight: bold; }
+  .card.matched .front { border-color: var(--matched); box-shadow: 0 0 0 3px var(--matched); opacity: .8; }
+  .card.miss .front { animation: shake .4s; }
+  @keyframes shake {
+    25% { transform: rotateY(180deg) translateX(-4px); }
+    75% { transform: rotateY(180deg) translateX(4px); }
+  }
+
+  .result {
+    max-width: 720px;
+    margin: 0 auto 32px;
+    padding: 16px;
+    background: var(--panel);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+  }
+  .result[hidden] { display: none; }
+  .result h2 { margin-top: 0; color: var(--accent); }
+  .timeline { list-style: none; margin: 0; padding: 0; }
+  .timeline li {
+    display: grid;
+    grid-template-columns: 5em 1fr;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px dashed #d8ccb8;
+  }
+  .timeline .y { font-weight: bold; color: var(--year-ink); text-align: right; }
+
+  @media (max-width: 600px) {
+    .board { gap: 6px; }
+    .front.event .value { font-size: .62rem; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>歴史神経衰弱</h1>
+  <p>「年号」の札と「できごと」の札を組み合わせよう</p>
+</header>
+
+<div class="controls">
+  <label>出題範囲
+    <select id="category">
+      <option value="all">日本史＋世界史</option>
+      <option value="japan">日本史</option>
+      <option value="world">世界史</option>
+    </select>
+  </label>
+  <label>組数
+    <select id="pairs">
+      <option value="6">6組 (12枚)</option>
+      <option value="8" selected>8組 (16枚)</option>
+      <option value="10">10組 (20枚)</option>
+      <option value="12">12組 (24枚)</option>
+    </select>
+  </label>
+  <label>人数
+    <select id="players">
+      <option value="1">1人</option>
+      <option value="2">2人対戦</option>
+    </select>
+  </label>
+  <button class="primary" id="start">新しいゲーム</button>
+</div>
+
+<div class="status" id="status"></div>
+<div class="board" id="board"></div>
+
+<section class="result" id="result" hidden>
+  <h2 id="result-title"></h2>
+  <p id="result-detail"></p>
+  <h3>今回の年表</h3>
+  <ul class="timeline" id="timeline"></ul>
+</section>
+
+<script>
+// 年号とできごとの対。同じ年号のできごとが同じゲームに入ると対応が曖昧になるため、
+// 出題時に年号の重複を除いて選ぶ。
+const EVENTS = [
+  // 日本史
+  { year: 57,   text: "倭の奴国王が後漢に使いを送り金印を授かる", cat: "japan" },
+  { year: 239,  text: "卑弥呼が魏に使いを送る", cat: "japan" },
+  { year: 604,  text: "聖徳太子が十七条の憲法を定める", cat: "japan" },
+  { year: 607,  text: "小野妹子を遣隋使として派遣する", cat: "japan" },
+  { year: 645,  text: "中大兄皇子らが蘇我氏を倒す（大化の改新）", cat: "japan" },
+  { year: 701,  text: "大宝律令が制定される", cat: "japan" },
+  { year: 710,  text: "平城京に都を移す", cat: "japan" },
+  { year: 794,  text: "平安京に都を移す", cat: "japan" },
+  { year: 894,  text: "菅原道真の進言で遣唐使が停止される", cat: "japan" },
+  { year: 1016, text: "藤原道長が摂政となる", cat: "japan" },
+  { year: 1167, text: "平清盛が太政大臣となる", cat: "japan" },
+  { year: 1185, text: "壇ノ浦の戦いで平氏が滅亡する", cat: "japan" },
+  { year: 1192, text: "源頼朝が征夷大将軍に任じられる", cat: "japan" },
+  { year: 1221, text: "後鳥羽上皇が承久の乱を起こす", cat: "japan" },
+  { year: 1274, text: "元が九州北部に襲来する（文永の役）", cat: "japan" },
+  { year: 1338, text: "足利尊氏が征夷大将軍となる", cat: "japan" },
+  { year: 1467, text: "応仁の乱が始まる", cat: "japan" },
+  { year: 1543, text: "種子島に鉄砲が伝わる", cat: "japan" },
+  { year: 1549, text: "ザビエルが鹿児島でキリスト教を伝える", cat: "japan" },
+  { year: 1582, text: "本能寺の変で織田信長が倒れる", cat: "japan" },
+  { year: 1600, text: "関ヶ原の戦い", cat: "japan" },
+  { year: 1603, text: "徳川家康が江戸幕府を開く", cat: "japan" },
+  { year: 1639, text: "ポルトガル船の来航を禁止する（鎖国の完成）", cat: "japan" },
+  { year: 1853, text: "ペリーが浦賀に来航する", cat: "japan" },
+  { year: 1867, text: "徳川慶喜が大政奉還を行う", cat: "japan" },
+  { year: 1889, text: "大日本帝国憲法が発布される", cat: "japan" },
+  { year: 1894, text: "日清戦争が始まる", cat: "japan" },
+  { year: 1904, text: "日露戦争が始まる", cat: "japan" },
+  { year: 1923, text: "関東大震災が起こる", cat: "japan" },
+  { year: 1946, text: "日本国憲法が公布される", cat: "japan" },
+  { year: 1964, text: "東京オリンピックが開催される", cat: "japan" },
+  { year: 1972, text: "沖縄が日本に返還される", cat: "japan" },
+  // 世界史
+  { year: 1096, text: "第1回十字軍が始まる", cat: "world" },
+  { year: 1206, text: "チンギス・ハンがモンゴル帝国を建てる", cat: "world" },
+  { year: 1215, text: "イギリスでマグナ・カルタが制定される", cat: "world" },
+  { year: 1453, text: "コンスタンティノープルが陥落し東ローマ帝国が滅ぶ", cat: "world" },
+  { year: 1492, text: "コロンブスが西インド諸島に到達する", cat: "world" },
+  { year: 1517, text: "ルターが「95か条の論題」を発表し宗教改革が始まる", cat: "world" },
+  { year: 1588, text: "イギリスがスペインの無敵艦隊を破る", cat: "world" },
+  { year: 1776, text: "アメリカ独立宣言が出される", cat: "world" },
+  { year: 1789, text: "フランス革命が始まる", cat: "world" },
+  { year: 1840, text: "アヘン戦争が始まる", cat: "world" },
+  { year: 1861, text: "アメリカで南北戦争が始まる", cat: "world" },
+  { year: 1914, text: "第一次世界大戦が始まる", cat: "world" },
+  { year: 1917, text: "ロシア革命が起こる", cat: "world" },
+  { year: 1929, text: "ニューヨークの株価暴落から世界恐慌が起こる", cat: "world" },
+  { year: 1939, text: "第二次世界大戦が始まる", cat: "world" },
+  { year: 1969, text: "アポロ11号が人類初の月面着陸に成功する", cat: "world" },
+  { year: 1989, text: "ベルリンの壁が崩壊する", cat: "world" },
+  { year: 1991, text: "ソビエト連邦が解体する", cat: "world" },
+];
+
+const $ = (id) => document.getElementById(id);
+const board = $("board");
+
+let state;
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function formatYear(y) {
+  return `${y}年`;
+}
+
+function pickEvents(category, count) {
+  const pool = shuffle(EVENTS.filter((e) => category === "all" || e.cat === category));
+  const years = new Set();
+  const picked = [];
+  for (const e of pool) {
+    if (years.has(e.year)) continue;
+    years.add(e.year);
+    picked.push(e);
+    if (picked.length === count) break;
+  }
+  return picked;
+}
+
+function columnsFor(cardCount) {
+  const narrow = window.innerWidth < 600;
+  if (narrow) return cardCount <= 12 ? 3 : 4;
+  return cardCount <= 16 ? 4 : cardCount <= 20 ? 5 : 6;
+}
+
+function newGame() {
+  const playerCount = Number($("players").value);
+  const events = pickEvents($("category").value, Number($("pairs").value));
+  const cards = [];
+  events.forEach((ev, pairId) => {
+    cards.push({ pairId, kind: "year", label: formatYear(ev.year) });
+    cards.push({ pairId, kind: "event", label: ev.text });
+  });
+  shuffle(cards);
+
+  state = {
+    events,
+    cards,
+    open: [],
+    locked: false,
+    matchedPairs: 0,
+    moves: 0,
+    startedAt: null,
+    timer: null,
+    elapsed: 0,
+    current: 0,
+    scores: Array(playerCount).fill(0),
+  };
+
+  board.innerHTML = "";
+  board.style.setProperty("--cols", columnsFor(cards.length));
+  cards.forEach((card, i) => {
+    const el = document.createElement("button");
+    el.className = "card";
+    el.type = "button";
+    el.setAttribute("aria-label", "伏せられた札");
+    el.innerHTML = `
+      <div class="inner">
+        <div class="face back"><span>史</span></div>
+        <div class="face front ${card.kind}">
+          <div class="tag">${card.kind === "year" ? "年号" : "できごと"}</div>
+          <div class="value"></div>
+        </div>
+      </div>`;
+    el.querySelector(".value").textContent = card.label;
+    el.addEventListener("click", () => flip(i));
+    card.el = el;
+    board.appendChild(el);
+  });
+
+  $("result").hidden = true;
+  renderStatus();
+}
+
+function flip(i) {
+  const card = state.cards[i];
+  if (state.locked || card.matched || state.open.includes(card)) return;
+
+  if (state.startedAt === null) {
+    state.startedAt = Date.now();
+    state.timer = setInterval(() => {
+      state.elapsed = Math.floor((Date.now() - state.startedAt) / 1000);
+      renderStatus();
+    }, 1000);
+  }
+
+  card.el.classList.add("flipped");
+  card.el.setAttribute("aria-label", card.label);
+  state.open.push(card);
+  if (state.open.length < 2) return;
+
+  state.moves++;
+  const [a, b] = state.open;
+  if (a.pairId === b.pairId) {
+    for (const c of [a, b]) {
+      c.matched = true;
+      c.el.classList.add("matched");
+      c.el.disabled = true;
+    }
+    state.open = [];
+    state.matchedPairs++;
+    state.scores[state.current]++;
+    renderStatus();
+    if (state.matchedPairs === state.events.length) finish();
+    return;
+  }
+
+  state.locked = true;
+  renderStatus();
+  setTimeout(() => {
+    for (const c of [a, b]) {
+      c.el.classList.add("miss");
+    }
+  }, 500);
+  setTimeout(() => {
+    for (const c of [a, b]) {
+      c.el.classList.remove("flipped", "miss");
+      c.el.setAttribute("aria-label", "伏せられた札");
+    }
+    state.open = [];
+    state.locked = false;
+    state.current = (state.current + 1) % state.scores.length;
+    renderStatus();
+  }, 1300);
+}
+
+function renderStatus() {
+  const parts = [];
+  if (state.scores.length === 1) {
+    parts.push(`<span>そろった組: ${state.matchedPairs} / ${state.events.length}</span>`);
+    parts.push(`<span>めくった回数: ${state.moves}</span>`);
+    parts.push(`<span>時間: ${state.elapsed}秒</span>`);
+  } else {
+    state.scores.forEach((s, p) => {
+      const active = p === state.current && state.matchedPairs < state.events.length;
+      parts.push(`<span class="player${active ? " active" : ""}">プレイヤー${p + 1}: ${s}組</span>`);
+    });
+    parts.push(`<span>残り: ${state.events.length - state.matchedPairs}組</span>`);
+  }
+  $("status").innerHTML = parts.join("");
+}
+
+function finish() {
+  clearInterval(state.timer);
+  state.elapsed = Math.floor((Date.now() - state.startedAt) / 1000);
+  renderStatus();
+
+  if (state.scores.length === 1) {
+    $("result-title").textContent = "クリア！";
+    $("result-detail").textContent =
+      `${state.moves}回めくって ${state.elapsed}秒 で全${state.events.length}組をそろえました。`;
+  } else {
+    const [p1, p2] = state.scores;
+    $("result-title").textContent =
+      p1 === p2 ? "引き分け！" : `プレイヤー${p1 > p2 ? 1 : 2}の勝ち！`;
+    $("result-detail").textContent = `プレイヤー1: ${p1}組 / プレイヤー2: ${p2}組`;
+  }
+
+  const timeline = $("timeline");
+  timeline.innerHTML = "";
+  [...state.events].sort((a, b) => a.year - b.year).forEach((ev) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="y"></span><span></span>`;
+    li.children[0].textContent = formatYear(ev.year);
+    li.children[1].textContent = ev.text;
+    timeline.appendChild(li);
+  });
+  $("result").hidden = false;
+  $("result").scrollIntoView({ behavior: "smooth" });
+}
+
+$("start").addEventListener("click", () => {
+  if (state) clearInterval(state.timer);
+  newGame();
+});
+window.addEventListener("resize", () => {
+  if (state) board.style.setProperty("--cols", columnsFor(state.cards.length));
+});
+
+newGame();
+</script>
+</body>
+</html>
