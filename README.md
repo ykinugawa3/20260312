@@ -1,5 +1,7 @@
 # 競馬予想ソフト 企画案
 
+> 訪日旅行者向け Android アプリ **Japan Pocket Guide** は [`android/`](android/README.md) にある。
+
 ## Windows での使い方 (ダブルクリック)
 
 1. [Python](https://www.python.org/downloads/) 3.10 以上をインストールする
