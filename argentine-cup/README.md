@@ -4,6 +4,7 @@
 
 - `index.html` … ブラウザで開くとページが見られます（完成版）
 - `data.json` … 集めた勝ち馬データ（20年分）
+- `entries_2026.json` … 2026年（第64回）の出走馬と前走（2026年11月6日取得）
 - `template.html` … ページのひな形
 - `build.py` … `data.json` と `template.html` からページを作り直すスクリプト（`python3 build.py`）
 

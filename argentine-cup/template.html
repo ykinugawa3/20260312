@@ -151,6 +151,22 @@ tbody tr:hover td.w7 { background: var(--w7); } tbody tr:hover td.w8 { backgroun
 .sources ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
 .sources a { color: var(--red); overflow-wrap: anywhere; }
 .sources p { margin: 0; }
+
+/* 2026年の注目馬 */
+.pick-lead { margin: 0 0 12px; font-size: 13px; display: grid; gap: 4px; max-width: 72ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; margin-bottom: 10px; }
+.tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border: 1px solid var(--ink); white-space: nowrap; line-height: 1.6; }
+.tag.honmei { background: var(--red); border-color: var(--red); color: #fff; }
+.tag.ana { color: var(--red); border-color: var(--red); background: var(--paper); }
+.tag.none { color: var(--ink-2); border-color: var(--rule); }
+.ok { color: var(--red); font-weight: 700; }
+.ng { color: var(--ink-2); }
+tr.is-honmei td.horse { color: var(--red); }
+.pick-cards { display: none; }
+@media (max-width: 760px) {
+  .pick-scroll { display: none; }
+  .pick-cards { display: grid; border-top: 2px solid var(--ink); }
+}
 @media (prefers-reduced-motion: no-preference) { .bars .fill { transition: width .4s ease; } }
 </style>
 
@@ -164,6 +180,26 @@ tbody tr:hover td.w7 { background: var(--w7); } tbody tr:hover td.w8 { backgroun
   <section aria-labelledby="trend-h">
     <div class="sec-h"><h2 id="trend-h">傾向まとめ</h2><span id="trend-sub">勝ち馬20頭から集計</span></div>
     <div class="trend-grid" id="trend"></div>
+  </section>
+
+
+  <section aria-labelledby="pick-h">
+    <div class="sec-h"><h2 id="pick-h">2026年の注目馬</h2><span>第64回・11月8日（日）東京11R ／ 18頭・枠順確定</span></div>
+    <div class="pick-lead">
+      <p style="margin:0">過去20年の傾向に、今年の出走馬を当てはめました。勝ち馬に多い「4歳」と「前走3着以内」の両方を満たす馬を本命候補、4歳ではないが前走G2で3着以内だった馬を穴候補としています。</p>
+      <p class="note">単勝人気は当日まで決まりません。過去20年は1〜3番人気が<b id="pick-pop13"></b>勝しているので、当日の人気もあわせて確認してください。データの当てはめであり、結果を保証するものではありません。</p>
+    </div>
+    <div class="legend"><span><span class="tag honmei">本命候補</span> 4歳 ＋ 前走3着以内</span><span><span class="tag ana">穴候補</span> 5歳以上 ＋ 前走G2で3着以内</span><span>「○勝」は、過去20年にその条件の馬が勝った回数</span></div>
+    <div class="table-scroll pick-scroll">
+      <table>
+        <thead><tr>
+          <th class="c">枠</th><th class="c">馬番</th><th>馬名・性齢</th><th class="c">斤量</th><th>騎手<span class="sub">調教師</span></th><th>前走</th>
+          <th class="c">年齢</th><th class="c">前走着順</th><th class="c">前走の格</th><th class="c">判定</th>
+        </tr></thead>
+        <tbody id="pick-body"></tbody>
+      </table>
+    </div>
+    <div class="cards pick-cards" id="pick-cards"></div>
   </section>
 
   <section aria-labelledby="list-h">
@@ -192,6 +228,7 @@ tbody tr:hover td.w7 { background: var(--w7); } tbody tr:hover td.w8 { backgroun
       <li>netkeiba（競馬データベース）：各年のレース結果ページ（枠番・馬番・単勝人気・出走頭数・勝ちタイム）、各馬の戦績ページ（前走）、血統ページ（父・母父）<br><a href="https://db.netkeiba.com/" target="_blank" rel="noopener">https://db.netkeiba.com/</a></li>
       <li>Wikipedia「アルゼンチン共和国杯」歴代優勝馬表（回次・施行日・勝ち馬・性齢・タイム・騎手・調教師の照合）<br><a href="https://ja.wikipedia.org/wiki/%E3%82%A2%E3%83%AB%E3%82%BC%E3%83%B3%E3%83%81%E3%83%B3%E5%85%B1%E5%92%8C%E5%9B%BD%E6%9D%AF" target="_blank" rel="noopener">https://ja.wikipedia.org/wiki/アルゼンチン共和国杯</a></li>
       <li>Wikipedia 各勝ち馬の記事（父・母父の照合）</li>
+      <li>netkeiba 出馬表（2026年の出走馬・枠順・斤量・騎手。2026年11月6日取得）と各馬の戦績ページ（前走）<br><a href="https://race.netkeiba.com/race/shutuba.html?race_id=202605050211" target="_blank" rel="noopener">https://race.netkeiba.com/race/shutuba.html?race_id=202605050211</a></li>
       <li>JRA 日本中央競馬会 レース情報<br><a href="https://www.jra.go.jp/keiba/race/101.html" target="_blank" rel="noopener">https://www.jra.go.jp/keiba/race/101.html</a></li>
     </ul>
     <p>前走の格：G1＝GⅠ、G2＝GⅡ、オープン＝GⅢ・リステッド・オープン特別、条件＝1000万下・1600万下・3勝クラスなど。性齢の「セ」はせん馬。2014年の前走オールカマーは中山競馬場の改修のため新潟で施行。2025年11月時点の公開情報をもとに作成しています。</p>
@@ -200,6 +237,7 @@ tbody tr:hover td.w7 { background: var(--w7); } tbody tr:hover td.w8 { backgroun
 
 <script>
 const DATA = __DATA__;
+const ENTRIES = __ENTRIES__;
 
 const POP_BANDS = [
   { id: "p1", label: "1番人気", test: p => p === 1 },
@@ -347,7 +385,49 @@ function renderList() {
       </dl></div></article>`).join("");
 }
 
+/* ---- 2026年の注目馬 ---- */
+function renderPicks() {
+  const ageBand = a => (a >= 7 ? 7 : a);
+  const ageLabel = a => (a >= 7 ? "7歳以上" : a + "歳");
+  const winsAge = a => count(r => ageBand(age(r)) === ageBand(a));
+  const winsCat = c => count(r => catOf(r) === c);
+  const winsTop3 = count(r => parseInt(r.prev_fin, 10) <= 3);
+  const winsOut = N - winsTop3;
+  document.getElementById("pick-pop13").textContent = count(r => r.pop <= 3);
+  const rows = ENTRIES.map(e => {
+    const a = age(e), fin = parseInt(e.prev_fin, 10);
+    const four = a === 4, top3 = fin <= 3;
+    const judge = four && top3 ? "honmei" : (!four && a >= 5 && top3 && e.prev_cat === "G2" ? "ana" : "none");
+    return { e, a, fin, four, top3, judge };
+  });
+  const trn = t => esc(t).replace(/^(栗東|美浦)/, "$1 ");
+  const tagHtml = j => j === "honmei" ? '<span class="tag honmei">本命候補</span>' : j === "ana" ? '<span class="tag ana">穴候補</span>' : '<span class="tag none">—</span>';
+  const prev = e => `${esc(e.prev_race)}<span class="prev-g ${esc(e.prev_cat)}">${esc(gradeLabel(e.prev_grade))}</span>
+    <span class="sub">${esc(e.prev_venue)}・${esc(e.prev_dist)}・${esc(e.prev_pop)}番人気・<span class="${parseInt(e.prev_fin,10) <= 3 ? "fin-top" : ""}">${esc(e.prev_fin)}着</span></span>`;
+  const ageCell = x => `<span class="${x.four ? "ok" : "ng"}">${ageLabel(x.a)} ${winsAge(x.a)}勝</span>`;
+  const finCell = x => `<span class="${x.top3 ? "ok" : "ng"}">${x.top3 ? "3着以内" : "4着以下"} ${x.top3 ? winsTop3 : winsOut}勝</span>`;
+  const catCell = x => `<span class="${x.e.prev_cat === "G2" ? "ok" : "ng"}">${x.e.prev_cat}組 ${winsCat(x.e.prev_cat)}勝</span>`;
+  document.getElementById("pick-body").innerHTML = rows.map(x => `<tr class="${x.judge === "honmei" ? "is-honmei" : ""}">
+    <td class="waku w${x.e.waku}">${x.e.waku}</td><td class="n">${x.e.umaban}</td>
+    <td class="horse">${esc(x.e.horse)}<small>${esc(x.e.sexage)}</small></td>
+    <td class="n">${esc(x.e.weight)}</td>
+    <td>${esc(x.e.jockey)}<span class="sub">${trn(x.e.trainer)}</span></td>
+    <td>${prev(x.e)}</td>
+    <td class="c">${ageCell(x)}</td><td class="c">${finCell(x)}</td><td class="c">${catCell(x)}</td>
+    <td class="c">${tagHtml(x.judge)}</td></tr>`).join("");
+  document.getElementById("pick-cards").innerHTML = rows.map(x => `<article class="card">
+    <div class="cw w${x.e.waku}"><span class="wk">${x.e.waku}枠</span><span class="ub">${x.e.umaban}</span></div>
+    <div class="cb">
+      <div class="top"><span class="nm">${esc(x.e.horse)}</span><span class="sa">${esc(x.e.sexage)}・${esc(x.e.weight)}kg</span>${x.judge === "none" ? "" : tagHtml(x.judge)}</div>
+      <dl>
+        <dt>騎手</dt><dd>${esc(x.e.jockey)}（${trn(x.e.trainer)}）</dd>
+        <dt>前走</dt><dd>${prev(x.e)}</dd>
+        <dt>傾向</dt><dd>${ageCell(x)}／${finCell(x)}／${catCell(x)}</dd>
+      </dl></div></article>`).join("");
+}
+
 renderTrend();
+renderPicks();
 buildFilters();
 renderList();
 </script>

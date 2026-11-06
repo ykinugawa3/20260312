@@ -156,6 +156,22 @@ tbody tr:hover td.w7 { background: var(--w7); } tbody tr:hover td.w8 { backgroun
 .sources ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
 .sources a { color: var(--red); overflow-wrap: anywhere; }
 .sources p { margin: 0; }
+
+/* 2026年の注目馬 */
+.pick-lead { margin: 0 0 12px; font-size: 13px; display: grid; gap: 4px; max-width: 72ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; margin-bottom: 10px; }
+.tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border: 1px solid var(--ink); white-space: nowrap; line-height: 1.6; }
+.tag.honmei { background: var(--red); border-color: var(--red); color: #fff; }
+.tag.ana { color: var(--red); border-color: var(--red); background: var(--paper); }
+.tag.none { color: var(--ink-2); border-color: var(--rule); }
+.ok { color: var(--red); font-weight: 700; }
+.ng { color: var(--ink-2); }
+tr.is-honmei td.horse { color: var(--red); }
+.pick-cards { display: none; }
+@media (max-width: 760px) {
+  .pick-scroll { display: none; }
+  .pick-cards { display: grid; border-top: 2px solid var(--ink); }
+}
 @media (prefers-reduced-motion: no-preference) { .bars .fill { transition: width .4s ease; } }
 </style>
 </head>
@@ -172,6 +188,26 @@ tbody tr:hover td.w7 { background: var(--w7); } tbody tr:hover td.w8 { backgroun
   <section aria-labelledby="trend-h">
     <div class="sec-h"><h2 id="trend-h">傾向まとめ</h2><span id="trend-sub">勝ち馬20頭から集計</span></div>
     <div class="trend-grid" id="trend"></div>
+  </section>
+
+
+  <section aria-labelledby="pick-h">
+    <div class="sec-h"><h2 id="pick-h">2026年の注目馬</h2><span>第64回・11月8日（日）東京11R ／ 18頭・枠順確定</span></div>
+    <div class="pick-lead">
+      <p style="margin:0">過去20年の傾向に、今年の出走馬を当てはめました。勝ち馬に多い「4歳」と「前走3着以内」の両方を満たす馬を本命候補、4歳ではないが前走G2で3着以内だった馬を穴候補としています。</p>
+      <p class="note">単勝人気は当日まで決まりません。過去20年は1〜3番人気が<b id="pick-pop13"></b>勝しているので、当日の人気もあわせて確認してください。データの当てはめであり、結果を保証するものではありません。</p>
+    </div>
+    <div class="legend"><span><span class="tag honmei">本命候補</span> 4歳 ＋ 前走3着以内</span><span><span class="tag ana">穴候補</span> 5歳以上 ＋ 前走G2で3着以内</span><span>「○勝」は、過去20年にその条件の馬が勝った回数</span></div>
+    <div class="table-scroll pick-scroll">
+      <table>
+        <thead><tr>
+          <th class="c">枠</th><th class="c">馬番</th><th>馬名・性齢</th><th class="c">斤量</th><th>騎手<span class="sub">調教師</span></th><th>前走</th>
+          <th class="c">年齢</th><th class="c">前走着順</th><th class="c">前走の格</th><th class="c">判定</th>
+        </tr></thead>
+        <tbody id="pick-body"></tbody>
+      </table>
+    </div>
+    <div class="cards pick-cards" id="pick-cards"></div>
   </section>
 
   <section aria-labelledby="list-h">
@@ -200,6 +236,7 @@ tbody tr:hover td.w7 { background: var(--w7); } tbody tr:hover td.w8 { backgroun
       <li>netkeiba（競馬データベース）：各年のレース結果ページ（枠番・馬番・単勝人気・出走頭数・勝ちタイム）、各馬の戦績ページ（前走）、血統ページ（父・母父）<br><a href="https://db.netkeiba.com/" target="_blank" rel="noopener">https://db.netkeiba.com/</a></li>
       <li>Wikipedia「アルゼンチン共和国杯」歴代優勝馬表（回次・施行日・勝ち馬・性齢・タイム・騎手・調教師の照合）<br><a href="https://ja.wikipedia.org/wiki/%E3%82%A2%E3%83%AB%E3%82%BC%E3%83%B3%E3%83%81%E3%83%B3%E5%85%B1%E5%92%8C%E5%9B%BD%E6%9D%AF" target="_blank" rel="noopener">https://ja.wikipedia.org/wiki/アルゼンチン共和国杯</a></li>
       <li>Wikipedia 各勝ち馬の記事（父・母父の照合）</li>
+      <li>netkeiba 出馬表（2026年の出走馬・枠順・斤量・騎手。2026年11月6日取得）と各馬の戦績ページ（前走）<br><a href="https://race.netkeiba.com/race/shutuba.html?race_id=202605050211" target="_blank" rel="noopener">https://race.netkeiba.com/race/shutuba.html?race_id=202605050211</a></li>
       <li>JRA 日本中央競馬会 レース情報<br><a href="https://www.jra.go.jp/keiba/race/101.html" target="_blank" rel="noopener">https://www.jra.go.jp/keiba/race/101.html</a></li>
     </ul>
     <p>前走の格：G1＝GⅠ、G2＝GⅡ、オープン＝GⅢ・リステッド・オープン特別、条件＝1000万下・1600万下・3勝クラスなど。性齢の「セ」はせん馬。2014年の前走オールカマーは中山競馬場の改修のため新潟で施行。2025年11月時点の公開情報をもとに作成しています。</p>
@@ -208,6 +245,7 @@ tbody tr:hover td.w7 { background: var(--w7); } tbody tr:hover td.w8 { backgroun
 
 <script>
 const DATA = [{"year":2025,"kai":"第63回","date":"2025年11月9日","horse":"ミステリーウェイ","sexage":"セ7","waku":7,"umaban":13,"pop":9,"odds":"27.7","jockey":"松本大輝","trainer":"小林真也","sire":"ジャスタウェイ","damsire":"High Chaparral (愛)","prev_race":"丹頂S","prev_grade":"OP","prev_cat":"オープン","prev_venue":"札幌","prev_dist":"芝2600","prev_fin":"1","time":"2:30.2","heads":18,"weather":"曇"},{"year":2024,"kai":"第62回","date":"2024年11月3日","horse":"ハヤヤッコ","sexage":"牡8","waku":2,"umaban":3,"pop":10,"odds":"35.3","jockey":"吉田豊","trainer":"国枝栄","sire":"キングカメハメハ","damsire":"クロフネ","prev_race":"タイランドC","prev_grade":"OP","prev_cat":"オープン","prev_venue":"札幌","prev_dist":"芝2600","prev_fin":"3","time":"2:29.0","heads":16,"weather":"晴"},{"year":2023,"kai":"第61回","date":"2023年11月5日","horse":"ゼッフィーロ","sexage":"牡4","waku":5,"umaban":9,"pop":1,"odds":"2.4","jockey":"J.モレイラ","trainer":"池江泰寿","sire":"ディープインパクト","damsire":"Danehill Dancer (愛)","prev_race":"産経賞オールカマー","prev_grade":"GII","prev_cat":"G2","prev_venue":"中山","prev_dist":"芝2200","prev_fin":"3","time":"2:29.9","heads":18,"weather":"晴"},{"year":2022,"kai":"第60回","date":"2022年11月6日","horse":"ブレークアップ","sexage":"牡4","waku":4,"umaban":7,"pop":6,"odds":"17.7","jockey":"田辺裕信","trainer":"黒岩陽一","sire":"ノヴェリスト","damsire":"クロフネ","prev_race":"六社S","prev_grade":"3勝クラス","prev_cat":"条件","prev_venue":"東京","prev_dist":"芝2400","prev_fin":"1","time":"2:31.1","heads":18,"weather":"晴"},{"year":2021,"kai":"第59回","date":"2021年11月7日","horse":"オーソリティ","sexage":"牡4","waku":6,"umaban":10,"pop":1,"odds":"3.0","jockey":"C.ルメール","trainer":"木村哲也","sire":"オルフェーヴル","damsire":"シンボリクリスエス","prev_race":"天皇賞(春)","prev_grade":"GI","prev_cat":"G1","prev_venue":"阪神","prev_dist":"芝3200","prev_fin":"10","time":"2:32.4","heads":15,"weather":"晴"},{"year":2020,"kai":"第58回","date":"2020年11月8日","horse":"オーソリティ","sexage":"牡3","waku":8,"umaban":18,"pop":3,"odds":"5.3","jockey":"C.ルメール","trainer":"木村哲也","sire":"オルフェーヴル","damsire":"シンボリクリスエス","prev_race":"テレビ東京杯青葉賞","prev_grade":"GII","prev_cat":"G2","prev_venue":"東京","prev_dist":"芝2400","prev_fin":"1","time":"2:31.6","heads":18,"weather":"曇"},{"year":2019,"kai":"第57回","date":"2019年11月3日","horse":"ムイトオブリガード","sexage":"牡5","waku":5,"umaban":7,"pop":2,"odds":"4.8","jockey":"横山典弘","trainer":"角田晃一","sire":"ルーラーシップ","damsire":"サンデーサイレンス","prev_race":"目黒記念","prev_grade":"GII","prev_cat":"G2","prev_venue":"東京","prev_dist":"芝2500","prev_fin":"5","time":"2:31.5","heads":13,"weather":"曇"},{"year":2018,"kai":"第56回","date":"2018年11月4日","horse":"パフォーマプロミス","sexage":"牡6","waku":5,"umaban":6,"pop":3,"odds":"4.8","jockey":"C.オドノヒュー","trainer":"藤原英昭","sire":"ステイゴールド","damsire":"タニノギムレット","prev_race":"宝塚記念","prev_grade":"GI","prev_cat":"G1","prev_venue":"阪神","prev_dist":"芝2200","prev_fin":"9","time":"2:33.7","heads":12,"weather":"曇"},{"year":2017,"kai":"第55回","date":"2017年11月5日","horse":"スワーヴリチャード","sexage":"牡3","waku":2,"umaban":4,"pop":1,"odds":"2.0","jockey":"M.デムーロ","trainer":"庄野靖志","sire":"ハーツクライ","damsire":"Unbridled's Song (米)","prev_race":"東京優駿","prev_grade":"GI","prev_cat":"G1","prev_venue":"東京","prev_dist":"芝2400","prev_fin":"2","time":"2:30.0","heads":16,"weather":"晴"},{"year":2016,"kai":"第54回","date":"2016年11月6日","horse":"シュヴァルグラン","sexage":"牡4","waku":6,"umaban":11,"pop":2,"odds":"3.9","jockey":"福永祐一","trainer":"友道康夫","sire":"ハーツクライ","damsire":"Machiavellian (米)","prev_race":"宝塚記念","prev_grade":"GI","prev_cat":"G1","prev_venue":"阪神","prev_dist":"芝2200","prev_fin":"9","time":"2:33.4","heads":15,"weather":"晴"},{"year":2015,"kai":"第53回","date":"2015年11月8日","horse":"ゴールドアクター","sexage":"牡4","waku":7,"umaban":15,"pop":1,"odds":"2.1","jockey":"吉田隼人","trainer":"中川公成","sire":"スクリーンヒーロー","damsire":"キョウワアリシバ","prev_race":"オクトーバーS","prev_grade":"1600万下","prev_cat":"条件","prev_venue":"東京","prev_dist":"芝2400","prev_fin":"1","time":"2:34.0","heads":18,"weather":"雨"},{"year":2014,"kai":"第52回","date":"2014年11月9日","horse":"フェイムゲーム","sexage":"牡4","waku":2,"umaban":3,"pop":2,"odds":"4.9","jockey":"北村宏司","trainer":"宗像義忠","sire":"ハーツクライ","damsire":"アレミロード","prev_race":"産経賞オールカマー","prev_grade":"GII","prev_cat":"G2","prev_venue":"新潟","prev_dist":"芝2200","prev_fin":"6","time":"2:30.5","heads":18,"weather":"曇"},{"year":2013,"kai":"第51回","date":"2013年11月3日","horse":"アスカクリチャン","sexage":"牡6","waku":6,"umaban":12,"pop":7,"odds":"12.7","jockey":"戸崎圭太","trainer":"須貝尚介","sire":"スターリングローズ","damsire":"ダイナレター","prev_race":"アイルランドT","prev_grade":"OP","prev_cat":"オープン","prev_venue":"東京","prev_dist":"芝2000","prev_fin":"4","time":"2:30.9","heads":18,"weather":"晴"},{"year":2012,"kai":"第50回","date":"2012年11月4日","horse":"ルルーシュ","sexage":"牡4","waku":3,"umaban":4,"pop":2,"odds":"3.8","jockey":"横山典弘","trainer":"藤沢和雄","sire":"ゼンノロブロイ","damsire":"Highest Honor (仏)","prev_race":"産経賞オールカマー","prev_grade":"GII","prev_cat":"G2","prev_venue":"中山","prev_dist":"芝2200","prev_fin":"4","time":"2:29.9","heads":15,"weather":"晴"},{"year":2011,"kai":"第49回","date":"2011年11月6日","horse":"トレイルブレイザー","sexage":"牡4","waku":6,"umaban":11,"pop":3,"odds":"6.3","jockey":"安藤勝己","trainer":"池江泰寿","sire":"ゼンノロブロイ","damsire":"フォーティナイナー","prev_race":"古都S","prev_grade":"1600万下","prev_cat":"条件","prev_venue":"京都","prev_dist":"芝2200","prev_fin":"2","time":"2:31.5","heads":18,"weather":"曇"},{"year":2010,"kai":"第48回","date":"2010年11月7日","horse":"トーセンジョーダン","sexage":"牡4","waku":1,"umaban":2,"pop":1,"odds":"3.1","jockey":"三浦皇成","trainer":"池江泰寿","sire":"ジャングルポケット","damsire":"ノーザンテースト","prev_race":"アイルランドT","prev_grade":"OP","prev_cat":"オープン","prev_venue":"東京","prev_dist":"芝2000","prev_fin":"1","time":"2:30.0","heads":18,"weather":"晴"},{"year":2009,"kai":"第47回","date":"2009年11月8日","horse":"ミヤビランベリ","sexage":"牡6","waku":3,"umaban":6,"pop":11,"odds":"25.1","jockey":"吉田隼人","trainer":"加藤敬二","sire":"オペラハウス","damsire":"ホリスキー","prev_race":"札幌記念","prev_grade":"GII","prev_cat":"G2","prev_venue":"札幌","prev_dist":"芝2000","prev_fin":"14","time":"2:30.9","heads":18,"weather":"晴"},{"year":2008,"kai":"第46回","date":"2008年11月9日","horse":"スクリーンヒーロー","sexage":"牡4","waku":2,"umaban":4,"pop":3,"odds":"8.9","jockey":"蛯名正義","trainer":"鹿戸雄一","sire":"グラスワンダー","damsire":"サンデーサイレンス","prev_race":"オクトーバーS","prev_grade":"1600万下","prev_cat":"条件","prev_venue":"東京","prev_dist":"芝2400","prev_fin":"2","time":"2:30.8","heads":16,"weather":"曇"},{"year":2007,"kai":"第45回","date":"2007年11月4日","horse":"アドマイヤジュピタ","sexage":"牡4","waku":5,"umaban":9,"pop":2,"odds":"5.1","jockey":"村田一誠","trainer":"友道康夫","sire":"フレンチデピュティ","damsire":"リアルシャダイ","prev_race":"鳴滝特別","prev_grade":"1000万下","prev_cat":"条件","prev_venue":"京都","prev_dist":"芝2200","prev_fin":"1","time":"2:30.9","heads":18,"weather":"晴"},{"year":2006,"kai":"第44回","date":"2006年11月5日","horse":"トウショウナイト","sexage":"牡5","waku":6,"umaban":9,"pop":1,"odds":"4.1","jockey":"武士沢友治","trainer":"保田一隆","sire":"ティンバーカントリー","damsire":"Java Gold (米)","prev_race":"京都大賞典","prev_grade":"GII","prev_cat":"G2","prev_venue":"京都","prev_dist":"芝2400","prev_fin":"3","time":"2:31.0","heads":14,"weather":"晴"}];
+const ENTRIES = [{"waku":1,"umaban":1,"horse":"ジーティーダーリン","sexage":"牡4","weight":"55.0","jockey":"大野","trainer":"栗東田中克","prev_date":"2026/09/12","prev_race":"チャレンジC","prev_grade":"GIII","prev_cat":"オープン","prev_venue":"阪神","prev_dist":"芝2000","prev_pop":"8","prev_fin":"15"},{"waku":1,"umaban":2,"horse":"ビザンチンドリーム","sexage":"牡5","weight":"59.5","jockey":"国分優","trainer":"栗東坂口","prev_date":"2026/06/14","prev_race":"宝塚記念","prev_grade":"GI","prev_cat":"G1","prev_venue":"阪神","prev_dist":"芝2200","prev_pop":"7","prev_fin":"15"},{"waku":2,"umaban":3,"horse":"マイネルエンペラー","sexage":"牡6","weight":"58.5","jockey":"吉村","trainer":"栗東清水久","prev_date":"2026/10/04","prev_race":"京都大賞典","prev_grade":"GII","prev_cat":"G2","prev_venue":"京都","prev_dist":"芝2400","prev_pop":"8","prev_fin":"2"},{"waku":2,"umaban":4,"horse":"ミラージュナイト","sexage":"牡4","weight":"57.0","jockey":"西村淳","trainer":"栗東杉山佳","prev_date":"2026/07/26","prev_race":"札幌日経賞","prev_grade":"L","prev_cat":"オープン","prev_venue":"札幌","prev_dist":"芝2600","prev_pop":"1","prev_fin":"1"},{"waku":3,"umaban":5,"horse":"ドゥラドーレス","sexage":"セ7","weight":"58.0","jockey":"ルメール","trainer":"美浦宮田","prev_date":"2026/05/16","prev_race":"新潟大賞典","prev_grade":"GIII","prev_cat":"オープン","prev_venue":"新潟","prev_dist":"芝2000","prev_pop":"1","prev_fin":"4"},{"waku":3,"umaban":6,"horse":"ファミリータイム","sexage":"牡5","weight":"56.0","jockey":"菅原明","trainer":"栗東石坂","prev_date":"2026/10/04","prev_race":"京都大賞典","prev_grade":"GII","prev_cat":"G2","prev_venue":"京都","prev_dist":"芝2400","prev_pop":"9","prev_fin":"12"},{"waku":4,"umaban":7,"horse":"ファイアンクランツ","sexage":"牡4","weight":"58.0","jockey":"岩田望","trainer":"美浦堀","prev_date":"2026/05/31","prev_race":"目黒記念","prev_grade":"GII","prev_cat":"G2","prev_venue":"東京","prev_dist":"芝2500","prev_pop":"3","prev_fin":"1"},{"waku":4,"umaban":8,"horse":"ジョイボーイ","sexage":"牡4","weight":"55.0","jockey":"横山武","trainer":"栗東四位","prev_date":"2026/09/21","prev_race":"Mキタサンブラック","prev_grade":"3勝クラス","prev_cat":"条件","prev_venue":"阪神","prev_dist":"芝2200","prev_pop":"4","prev_fin":"1"},{"waku":5,"umaban":9,"horse":"レッドバンデ","sexage":"牡4","weight":"57.0","jockey":"佐々木","trainer":"美浦大竹","prev_date":"2026/10/12","prev_race":"昇仙峡S","prev_grade":"3勝クラス","prev_cat":"条件","prev_venue":"東京","prev_dist":"芝2400","prev_pop":"1","prev_fin":"1"},{"waku":5,"umaban":10,"horse":"ボーンディスウェイ","sexage":"牡7","weight":"56.0","jockey":"マーカンド","trainer":"美浦牧","prev_date":"2026/10/12","prev_race":"オクトーバーS","prev_grade":"L","prev_cat":"オープン","prev_venue":"東京","prev_dist":"芝2000","prev_pop":"6","prev_fin":"9"},{"waku":6,"umaban":11,"horse":"ウエストナウ","sexage":"牡5","weight":"57.5","jockey":"横山典","trainer":"栗東寺島","prev_date":"2026/10/04","prev_race":"京都大賞典","prev_grade":"GII","prev_cat":"G2","prev_venue":"京都","prev_dist":"芝2400","prev_pop":"4","prev_fin":"6"},{"waku":6,"umaban":12,"horse":"メイショウゲキリン","sexage":"牡7","weight":"58.0","jockey":"田辺","trainer":"栗東笹田","prev_date":"2026/09/20","prev_race":"産経賞オールカマー","prev_grade":"GII","prev_cat":"G2","prev_venue":"中山","prev_dist":"芝2200","prev_pop":"9","prev_fin":"1"},{"waku":7,"umaban":13,"horse":"マイネルカンパーナ","sexage":"牡6","weight":"56.0","jockey":"津村","trainer":"美浦青木","prev_date":"2026/09/06","prev_race":"丹頂S","prev_grade":"OP","prev_cat":"オープン","prev_venue":"札幌","prev_dist":"芝2600","prev_pop":"8","prev_fin":"6"},{"waku":7,"umaban":14,"horse":"ミクニインスパイア","sexage":"牡4","weight":"56.0","jockey":"岩田康","trainer":"美浦林","prev_date":"2026/10/04","prev_race":"京都大賞典","prev_grade":"GII","prev_cat":"G2","prev_venue":"京都","prev_dist":"芝2400","prev_pop":"6","prev_fin":"18"},{"waku":7,"umaban":15,"horse":"ホーエリート","sexage":"牝5","weight":"56.5","jockey":"戸崎圭","trainer":"美浦田島","prev_date":"2026/05/03","prev_race":"天皇賞(春)","prev_grade":"GI","prev_cat":"G1","prev_venue":"京都","prev_dist":"芝3200","prev_pop":"7","prev_fin":"14"},{"waku":8,"umaban":16,"horse":"キングズパレス","sexage":"牡7","weight":"57.0","jockey":"松岡","trainer":"美浦戸田","prev_date":"2026/05/31","prev_race":"目黒記念","prev_grade":"GII","prev_cat":"G2","prev_venue":"東京","prev_dist":"芝2500","prev_pop":"11","prev_fin":"7"},{"waku":8,"umaban":17,"horse":"キングスコール","sexage":"牡4","weight":"55.0","jockey":"吉田豊","trainer":"栗東矢作","prev_date":"2026/10/04","prev_race":"京都大賞典","prev_grade":"GII","prev_cat":"G2","prev_venue":"京都","prev_dist":"芝2400","prev_pop":"12","prev_fin":"16"},{"waku":8,"umaban":18,"horse":"ミステリーウェイ","sexage":"セ8","weight":"58.0","jockey":"松本","trainer":"栗東小林","prev_date":"2026/10/04","prev_race":"京都大賞典","prev_grade":"GII","prev_cat":"G2","prev_venue":"京都","prev_dist":"芝2400","prev_pop":"14","prev_fin":"11"}];
 
 const POP_BANDS = [
   { id: "p1", label: "1番人気", test: p => p === 1 },
@@ -355,7 +393,49 @@ function renderList() {
       </dl></div></article>`).join("");
 }
 
+/* ---- 2026年の注目馬 ---- */
+function renderPicks() {
+  const ageBand = a => (a >= 7 ? 7 : a);
+  const ageLabel = a => (a >= 7 ? "7歳以上" : a + "歳");
+  const winsAge = a => count(r => ageBand(age(r)) === ageBand(a));
+  const winsCat = c => count(r => catOf(r) === c);
+  const winsTop3 = count(r => parseInt(r.prev_fin, 10) <= 3);
+  const winsOut = N - winsTop3;
+  document.getElementById("pick-pop13").textContent = count(r => r.pop <= 3);
+  const rows = ENTRIES.map(e => {
+    const a = age(e), fin = parseInt(e.prev_fin, 10);
+    const four = a === 4, top3 = fin <= 3;
+    const judge = four && top3 ? "honmei" : (!four && a >= 5 && top3 && e.prev_cat === "G2" ? "ana" : "none");
+    return { e, a, fin, four, top3, judge };
+  });
+  const trn = t => esc(t).replace(/^(栗東|美浦)/, "$1 ");
+  const tagHtml = j => j === "honmei" ? '<span class="tag honmei">本命候補</span>' : j === "ana" ? '<span class="tag ana">穴候補</span>' : '<span class="tag none">—</span>';
+  const prev = e => `${esc(e.prev_race)}<span class="prev-g ${esc(e.prev_cat)}">${esc(gradeLabel(e.prev_grade))}</span>
+    <span class="sub">${esc(e.prev_venue)}・${esc(e.prev_dist)}・${esc(e.prev_pop)}番人気・<span class="${parseInt(e.prev_fin,10) <= 3 ? "fin-top" : ""}">${esc(e.prev_fin)}着</span></span>`;
+  const ageCell = x => `<span class="${x.four ? "ok" : "ng"}">${ageLabel(x.a)} ${winsAge(x.a)}勝</span>`;
+  const finCell = x => `<span class="${x.top3 ? "ok" : "ng"}">${x.top3 ? "3着以内" : "4着以下"} ${x.top3 ? winsTop3 : winsOut}勝</span>`;
+  const catCell = x => `<span class="${x.e.prev_cat === "G2" ? "ok" : "ng"}">${x.e.prev_cat}組 ${winsCat(x.e.prev_cat)}勝</span>`;
+  document.getElementById("pick-body").innerHTML = rows.map(x => `<tr class="${x.judge === "honmei" ? "is-honmei" : ""}">
+    <td class="waku w${x.e.waku}">${x.e.waku}</td><td class="n">${x.e.umaban}</td>
+    <td class="horse">${esc(x.e.horse)}<small>${esc(x.e.sexage)}</small></td>
+    <td class="n">${esc(x.e.weight)}</td>
+    <td>${esc(x.e.jockey)}<span class="sub">${trn(x.e.trainer)}</span></td>
+    <td>${prev(x.e)}</td>
+    <td class="c">${ageCell(x)}</td><td class="c">${finCell(x)}</td><td class="c">${catCell(x)}</td>
+    <td class="c">${tagHtml(x.judge)}</td></tr>`).join("");
+  document.getElementById("pick-cards").innerHTML = rows.map(x => `<article class="card">
+    <div class="cw w${x.e.waku}"><span class="wk">${x.e.waku}枠</span><span class="ub">${x.e.umaban}</span></div>
+    <div class="cb">
+      <div class="top"><span class="nm">${esc(x.e.horse)}</span><span class="sa">${esc(x.e.sexage)}・${esc(x.e.weight)}kg</span>${x.judge === "none" ? "" : tagHtml(x.judge)}</div>
+      <dl>
+        <dt>騎手</dt><dd>${esc(x.e.jockey)}（${trn(x.e.trainer)}）</dd>
+        <dt>前走</dt><dd>${prev(x.e)}</dd>
+        <dt>傾向</dt><dd>${ageCell(x)}／${finCell(x)}／${catCell(x)}</dd>
+      </dl></div></article>`).join("");
+}
+
 renderTrend();
+renderPicks();
 buildFilters();
 renderList();
 </script>
