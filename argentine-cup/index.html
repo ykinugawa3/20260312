@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>アルゼンチン共和国杯 過去20年データ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Condensed:wght@400;700&display=swap">
+<style>
+/* 競馬新聞の紙面: 白地に細い罫線、朱赤と墨の2色刷り。上段に傾向の「データ欄」、下段に馬柱のような成績表。 */
+:root {
+  --paper: #ffffff;
+  --ink: #141414;
+  --ink-2: #4a4646;
+  --rule: #c9c2c2;
+  --rule-strong: #141414;
+  --red: #c4161c;
+  --red-tint: #fbeceb;
+  --shade: #f6f4f3;
+  --f-head: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --f-body: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  --f-num: "Roboto Condensed", "Arial Narrow", "Noto Sans JP", sans-serif;
+  /* 枠色 (JRA) */
+  --w1: #ffffff; --w1t: #141414;
+  --w2: #141414; --w2t: #ffffff;
+  --w3: #d7202a; --w3t: #ffffff;
+  --w4: #1f5fb8; --w4t: #ffffff;
+  --w5: #f7d417; --w5t: #141414;
+  --w6: #1d8f4e; --w6t: #ffffff;
+  --w7: #f08a1c; --w7t: #141414;
+  --w8: #f39bbf; --w8t: #141414;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { background: var(--paper); }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: var(--f-body); font-size: 14px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--f-head); text-wrap: balance; margin: 0; }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+
+/* 題字 */
+.masthead { border-top: 4px solid var(--ink); border-bottom: 1px solid var(--ink); padding-block: 12px 10px; display: grid; gap: 6px; }
+.masthead .kicker { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 12px; color: var(--ink-2); letter-spacing: .06em; }
+.grade { background: var(--red); color: #fff; font-family: var(--f-num); font-weight: 700; padding: 1px 8px; letter-spacing: .08em; }
+.masthead h1 { font-size: clamp(26px, 5.2vw, 44px); font-weight: 800; line-height: 1.2; }
+.masthead h1 .red { color: var(--red); }
+.nb { white-space: nowrap; }
+.masthead p { margin: 0; font-size: 13px; color: var(--ink-2); }
+
+/* セクション見出し */
+.sec-h { display: flex; align-items: baseline; gap: 12px; border-bottom: 2px solid var(--red); padding-bottom: 4px; margin-bottom: 14px; }
+.sec-h h2 { font-size: 22px; font-weight: 800; }
+.sec-h span { font-size: 12px; color: var(--ink-2); }
+
+/* 傾向まとめ */
+.trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0; border-top: 1px solid var(--rule-strong); border-left: 1px solid var(--rule); }
+.box { border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 12px 14px 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.box h3 { font-size: 15px; font-weight: 800; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.box h3 small { font-family: var(--f-body); font-weight: 400; font-size: 11px; color: var(--ink-2); }
+.lead { font-size: 13px; margin: 0; }
+.lead b { color: var(--red); font-family: var(--f-num); font-size: 20px; padding: 0 2px; }
+.bars { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.bars li { display: grid; grid-template-columns: 6.5em 1fr 4.2em; align-items: center; gap: 8px; font-size: 12px; }
+.bars .lab { white-space: nowrap; }
+.bars .track { height: 12px; background: var(--shade); position: relative; }
+.bars .fill { position: absolute; inset: 0 auto 0 0; background: var(--ink); }
+.bars li.hot .fill { background: var(--red); }
+.bars .val { text-align: right; font-family: var(--f-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bars .val b { font-size: 14px; }
+.waku-chip { display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; font-family: var(--f-num); font-weight: 700; font-size: 12px; border: 1px solid var(--ink); margin-right: 4px; }
+.note { font-size: 11px; color: var(--ink-2); margin: 0; }
+
+/* 絞り込み */
+.filters { display: grid; gap: 10px; padding: 12px 14px; background: var(--shade); border-top: 1px solid var(--ink); border-bottom: 1px solid var(--rule); margin-bottom: 12px; }
+.frow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.frow .fl { font-size: 12px; font-weight: 700; width: 5.5em; flex: none; }
+.frow .fl small { display: block; font-weight: 400; font-size: 10px; color: var(--ink-2); }
+.chip { font: inherit; font-size: 13px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); padding: 3px 11px; cursor: pointer; min-height: 32px; }
+.chip[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.chip:focus-visible, .reset:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+.fstat { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
+.fstat b { color: var(--red); font-family: var(--f-num); font-size: 18px; }
+.reset { font: inherit; font-size: 12px; background: none; border: none; color: var(--red); text-decoration: underline; cursor: pointer; padding: 4px; }
+
+/* 成績表 */
+.table-scroll { overflow-x: auto; border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { border-bottom: 1px solid var(--rule); border-right: 1px solid var(--rule); padding: 6px 7px; text-align: left; vertical-align: middle; }
+th:last-child, td:last-child { border-right: none; }
+thead th { font-size: 11px; font-weight: 700; background: var(--shade); white-space: nowrap; border-bottom: 1px solid var(--ink); letter-spacing: .04em; }
+td.c, th.c { text-align: center; }
+td.n { font-family: var(--f-num); font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+td.yr { font-family: var(--f-num); font-weight: 700; font-size: 15px; white-space: nowrap; }
+td.yr small { display: block; font-family: var(--f-body); font-weight: 400; font-size: 10px; color: var(--ink-2); }
+td.horse { font-family: var(--f-head); font-weight: 800; font-size: 15px; white-space: nowrap; }
+td.horse small { font-family: var(--f-body); font-weight: 400; font-size: 12px; color: var(--ink-2); margin-left: 4px; }
+td.waku { font-family: var(--f-num); font-weight: 700; text-align: center; width: 2.4em; }
+td.pop b { font-size: 15px; }
+td.pop.top b { color: var(--red); }
+.sub { display: block; font-size: 11px; color: var(--ink-2); }
+.prev-g { display: inline-block; font-family: var(--f-num); font-size: 11px; font-weight: 700; border: 1px solid var(--ink); padding: 0 4px; margin-left: 4px; line-height: 1.5; }
+.prev-g.G1 { background: var(--red); border-color: var(--red); color: #fff; }
+.prev-g.G2 { color: var(--red); border-color: var(--red); }
+.fin-top { color: var(--red); font-weight: 700; }
+tbody tr:hover td { background: var(--red-tint); }
+tbody tr:hover td.waku { filter: none; }
+.w1 { background: var(--w1); color: var(--w1t); box-shadow: inset 0 0 0 1px var(--ink); }
+.w2 { background: var(--w2); color: var(--w2t); }
+.w3 { background: var(--w3); color: var(--w3t); }
+.w4 { background: var(--w4); color: var(--w4t); }
+.w5 { background: var(--w5); color: var(--w5t); }
+.w6 { background: var(--w6); color: var(--w6t); }
+.w7 { background: var(--w7); color: var(--w7t); }
+.w8 { background: var(--w8); color: var(--w8t); }
+tbody tr:hover td.w1 { background: var(--w1); } tbody tr:hover td.w2 { background: var(--w2); }
+tbody tr:hover td.w3 { background: var(--w3); } tbody tr:hover td.w4 { background: var(--w4); }
+tbody tr:hover td.w5 { background: var(--w5); } tbody tr:hover td.w6 { background: var(--w6); }
+tbody tr:hover td.w7 { background: var(--w7); } tbody tr:hover td.w8 { background: var(--w8); }
+.empty { padding: 28px 12px; text-align: center; color: var(--ink-2); }
+
+/* スマホ: カード型 */
+.cards { display: none; }
+@media (max-width: 760px) {
+  .table-scroll { display: none; }
+  .cards { display: grid; gap: 0; border-top: 2px solid var(--ink); }
+  .card { display: grid; grid-template-columns: 3.2em 1fr; border-bottom: 1px solid var(--rule); min-width: 0; }
+  .card .cw { display: grid; place-items: center; align-content: center; gap: 2px; font-family: var(--f-num); font-weight: 700; padding: 8px 0; }
+  .card .cw .wk { font-size: 10px; font-weight: 400; }
+  .card .cw .ub { font-size: 22px; line-height: 1; }
+  .card .cb { padding: 9px 10px 10px 12px; display: grid; gap: 4px; min-width: 0; }
+  .card .top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+  .card .top .y { font-family: var(--f-num); font-weight: 700; font-size: 15px; }
+  .card .top .y small { font-family: var(--f-body); font-weight: 400; font-size: 11px; color: var(--ink-2); margin-left: 3px; }
+  .card .top .nm { font-family: var(--f-head); font-weight: 800; font-size: 18px; }
+  .card .top .sa { font-size: 12px; color: var(--ink-2); }
+  .card dl { margin: 0; display: grid; grid-template-columns: 3.6em 1fr; gap: 1px 8px; font-size: 12.5px; }
+  .card dt { color: var(--ink-2); font-size: 11px; padding-top: 1px; }
+  .card dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .card .pop-badge { font-family: var(--f-num); font-weight: 700; border: 1px solid var(--ink); padding: 0 6px; font-size: 13px; }
+  .card .pop-badge.fav { background: var(--red); border-color: var(--red); color: #fff; }
+  .frow .fl { width: 100%; }
+  .frow .fl small { display: inline; margin-left: 6px; }
+}
+
+/* 出典 */
+.sources { border-top: 1px solid var(--ink); padding-top: 12px; font-size: 12px; color: var(--ink-2); display: grid; gap: 8px; }
+.sources h2 { font-size: 15px; color: var(--ink); }
+.sources ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.sources a { color: var(--red); overflow-wrap: anywhere; }
+.sources p { margin: 0; }
+@media (prefers-reduced-motion: no-preference) { .bars .fill { transition: width .4s ease; } }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="kicker"><span class="grade">GⅡ</span><span>東京・芝2500m（左）</span><span>ハンデ戦</span><span>2006〜2025年</span></div>
+    <h1><span class="nb">アルゼンチン共和国杯</span> <span class="red nb">過去20年データ</span></h1>
+    <p>過去20回の勝ち馬を、人気・枠・年齢・前走から振り返ります。</p>
+  </header>
+
+  <section aria-labelledby="trend-h">
+    <div class="sec-h"><h2 id="trend-h">傾向まとめ</h2><span id="trend-sub">勝ち馬20頭から集計</span></div>
+    <div class="trend-grid" id="trend"></div>
+  </section>
+
+  <section aria-labelledby="list-h">
+    <div class="sec-h"><h2 id="list-h">歴代勝ち馬</h2><span>新しい年から順に表示</span></div>
+    <div class="filters" role="group" aria-label="絞り込み">
+      <div class="frow" data-key="pop"><span class="fl">人気帯</span></div>
+      <div class="frow" data-key="zone"><span class="fl">枠<small>内1〜3・中4〜5・外6〜8</small></span></div>
+      <div class="frow" data-key="cat"><span class="fl">前走の格</span></div>
+      <div class="fstat"><span>該当 <b id="hit" class="num">20</b> 件 ／ 20年</span><button type="button" class="reset" id="reset">絞り込みを解除</button></div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>年・回</th><th class="c">枠</th><th class="c">馬番</th><th>勝ち馬・性齢</th><th class="c">人気</th>
+          <th>騎手<span class="sub">調教師</span></th><th>父<span class="sub">母父</span></th><th>前走</th><th class="c">勝ちタイム</th><th class="c">頭数</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <footer class="sources">
+    <h2>データの出典</h2>
+    <ul>
+      <li>netkeiba（競馬データベース）：各年のレース結果ページ（枠番・馬番・単勝人気・出走頭数・勝ちタイム）、各馬の戦績ページ（前走）、血統ページ（父・母父）<br><a href="https://db.netkeiba.com/" target="_blank" rel="noopener">https://db.netkeiba.com/</a></li>
+      <li>Wikipedia「アルゼンチン共和国杯」歴代優勝馬表（回次・施行日・勝ち馬・性齢・タイム・騎手・調教師の照合）<br><a href="https://ja.wikipedia.org/wiki/%E3%82%A2%E3%83%AB%E3%82%BC%E3%83%B3%E3%83%81%E3%83%B3%E5%85%B1%E5%92%8C%E5%9B%BD%E6%9D%AF" target="_blank" rel="noopener">https://ja.wikipedia.org/wiki/アルゼンチン共和国杯</a></li>
+      <li>Wikipedia 各勝ち馬の記事（父・母父の照合）</li>
+      <li>JRA 日本中央競馬会 レース情報<br><a href="https://www.jra.go.jp/keiba/race/101.html" target="_blank" rel="noopener">https://www.jra.go.jp/keiba/race/101.html</a></li>
+    </ul>
+    <p>前走の格：G1＝GⅠ、G2＝GⅡ、オープン＝GⅢ・リステッド・オープン特別、条件＝1000万下・1600万下・3勝クラスなど。性齢の「セ」はせん馬。2014年の前走オールカマーは中山競馬場の改修のため新潟で施行。2025年11月時点の公開情報をもとに作成しています。</p>
+  </footer>
+</div>
+
+<script>
+const DATA = [{"year":2025,"kai":"第63回","date":"2025年11月9日","horse":"ミステリーウェイ","sexage":"セ7","waku":7,"umaban":13,"pop":9,"odds":"27.7","jockey":"松本大輝","trainer":"小林真也","sire":"ジャスタウェイ","damsire":"High Chaparral (愛)","prev_race":"丹頂S","prev_grade":"OP","prev_cat":"オープン","prev_venue":"札幌","prev_dist":"芝2600","prev_fin":"1","time":"2:30.2","heads":18,"weather":"曇"},{"year":2024,"kai":"第62回","date":"2024年11月3日","horse":"ハヤヤッコ","sexage":"牡8","waku":2,"umaban":3,"pop":10,"odds":"35.3","jockey":"吉田豊","trainer":"国枝栄","sire":"キングカメハメハ","damsire":"クロフネ","prev_race":"タイランドC","prev_grade":"OP","prev_cat":"オープン","prev_venue":"札幌","prev_dist":"芝2600","prev_fin":"3","time":"2:29.0","heads":16,"weather":"晴"},{"year":2023,"kai":"第61回","date":"2023年11月5日","horse":"ゼッフィーロ","sexage":"牡4","waku":5,"umaban":9,"pop":1,"odds":"2.4","jockey":"J.モレイラ","trainer":"池江泰寿","sire":"ディープインパクト","damsire":"Danehill Dancer (愛)","prev_race":"産経賞オールカマー","prev_grade":"GII","prev_cat":"G2","prev_venue":"中山","prev_dist":"芝2200","prev_fin":"3","time":"2:29.9","heads":18,"weather":"晴"},{"year":2022,"kai":"第60回","date":"2022年11月6日","horse":"ブレークアップ","sexage":"牡4","waku":4,"umaban":7,"pop":6,"odds":"17.7","jockey":"田辺裕信","trainer":"黒岩陽一","sire":"ノヴェリスト","damsire":"クロフネ","prev_race":"六社S","prev_grade":"3勝クラス","prev_cat":"条件","prev_venue":"東京","prev_dist":"芝2400","prev_fin":"1","time":"2:31.1","heads":18,"weather":"晴"},{"year":2021,"kai":"第59回","date":"2021年11月7日","horse":"オーソリティ","sexage":"牡4","waku":6,"umaban":10,"pop":1,"odds":"3.0","jockey":"C.ルメール","trainer":"木村哲也","sire":"オルフェーヴル","damsire":"シンボリクリスエス","prev_race":"天皇賞(春)","prev_grade":"GI","prev_cat":"G1","prev_venue":"阪神","prev_dist":"芝3200","prev_fin":"10","time":"2:32.4","heads":15,"weather":"晴"},{"year":2020,"kai":"第58回","date":"2020年11月8日","horse":"オーソリティ","sexage":"牡3","waku":8,"umaban":18,"pop":3,"odds":"5.3","jockey":"C.ルメール","trainer":"木村哲也","sire":"オルフェーヴル","damsire":"シンボリクリスエス","prev_race":"テレビ東京杯青葉賞","prev_grade":"GII","prev_cat":"G2","prev_venue":"東京","prev_dist":"芝2400","prev_fin":"1","time":"2:31.6","heads":18,"weather":"曇"},{"year":2019,"kai":"第57回","date":"2019年11月3日","horse":"ムイトオブリガード","sexage":"牡5","waku":5,"umaban":7,"pop":2,"odds":"4.8","jockey":"横山典弘","trainer":"角田晃一","sire":"ルーラーシップ","damsire":"サンデーサイレンス","prev_race":"目黒記念","prev_grade":"GII","prev_cat":"G2","prev_venue":"東京","prev_dist":"芝2500","prev_fin":"5","time":"2:31.5","heads":13,"weather":"曇"},{"year":2018,"kai":"第56回","date":"2018年11月4日","horse":"パフォーマプロミス","sexage":"牡6","waku":5,"umaban":6,"pop":3,"odds":"4.8","jockey":"C.オドノヒュー","trainer":"藤原英昭","sire":"ステイゴールド","damsire":"タニノギムレット","prev_race":"宝塚記念","prev_grade":"GI","prev_cat":"G1","prev_venue":"阪神","prev_dist":"芝2200","prev_fin":"9","time":"2:33.7","heads":12,"weather":"曇"},{"year":2017,"kai":"第55回","date":"2017年11月5日","horse":"スワーヴリチャード","sexage":"牡3","waku":2,"umaban":4,"pop":1,"odds":"2.0","jockey":"M.デムーロ","trainer":"庄野靖志","sire":"ハーツクライ","damsire":"Unbridled's Song (米)","prev_race":"東京優駿","prev_grade":"GI","prev_cat":"G1","prev_venue":"東京","prev_dist":"芝2400","prev_fin":"2","time":"2:30.0","heads":16,"weather":"晴"},{"year":2016,"kai":"第54回","date":"2016年11月6日","horse":"シュヴァルグラン","sexage":"牡4","waku":6,"umaban":11,"pop":2,"odds":"3.9","jockey":"福永祐一","trainer":"友道康夫","sire":"ハーツクライ","damsire":"Machiavellian (米)","prev_race":"宝塚記念","prev_grade":"GI","prev_cat":"G1","prev_venue":"阪神","prev_dist":"芝2200","prev_fin":"9","time":"2:33.4","heads":15,"weather":"晴"},{"year":2015,"kai":"第53回","date":"2015年11月8日","horse":"ゴールドアクター","sexage":"牡4","waku":7,"umaban":15,"pop":1,"odds":"2.1","jockey":"吉田隼人","trainer":"中川公成","sire":"スクリーンヒーロー","damsire":"キョウワアリシバ","prev_race":"オクトーバーS","prev_grade":"1600万下","prev_cat":"条件","prev_venue":"東京","prev_dist":"芝2400","prev_fin":"1","time":"2:34.0","heads":18,"weather":"雨"},{"year":2014,"kai":"第52回","date":"2014年11月9日","horse":"フェイムゲーム","sexage":"牡4","waku":2,"umaban":3,"pop":2,"odds":"4.9","jockey":"北村宏司","trainer":"宗像義忠","sire":"ハーツクライ","damsire":"アレミロード","prev_race":"産経賞オールカマー","prev_grade":"GII","prev_cat":"G2","prev_venue":"新潟","prev_dist":"芝2200","prev_fin":"6","time":"2:30.5","heads":18,"weather":"曇"},{"year":2013,"kai":"第51回","date":"2013年11月3日","horse":"アスカクリチャン","sexage":"牡6","waku":6,"umaban":12,"pop":7,"odds":"12.7","jockey":"戸崎圭太","trainer":"須貝尚介","sire":"スターリングローズ","damsire":"ダイナレター","prev_race":"アイルランドT","prev_grade":"OP","prev_cat":"オープン","prev_venue":"東京","prev_dist":"芝2000","prev_fin":"4","time":"2:30.9","heads":18,"weather":"晴"},{"year":2012,"kai":"第50回","date":"2012年11月4日","horse":"ルルーシュ","sexage":"牡4","waku":3,"umaban":4,"pop":2,"odds":"3.8","jockey":"横山典弘","trainer":"藤沢和雄","sire":"ゼンノロブロイ","damsire":"Highest Honor (仏)","prev_race":"産経賞オールカマー","prev_grade":"GII","prev_cat":"G2","prev_venue":"中山","prev_dist":"芝2200","prev_fin":"4","time":"2:29.9","heads":15,"weather":"晴"},{"year":2011,"kai":"第49回","date":"2011年11月6日","horse":"トレイルブレイザー","sexage":"牡4","waku":6,"umaban":11,"pop":3,"odds":"6.3","jockey":"安藤勝己","trainer":"池江泰寿","sire":"ゼンノロブロイ","damsire":"フォーティナイナー","prev_race":"古都S","prev_grade":"1600万下","prev_cat":"条件","prev_venue":"京都","prev_dist":"芝2200","prev_fin":"2","time":"2:31.5","heads":18,"weather":"曇"},{"year":2010,"kai":"第48回","date":"2010年11月7日","horse":"トーセンジョーダン","sexage":"牡4","waku":1,"umaban":2,"pop":1,"odds":"3.1","jockey":"三浦皇成","trainer":"池江泰寿","sire":"ジャングルポケット","damsire":"ノーザンテースト","prev_race":"アイルランドT","prev_grade":"OP","prev_cat":"オープン","prev_venue":"東京","prev_dist":"芝2000","prev_fin":"1","time":"2:30.0","heads":18,"weather":"晴"},{"year":2009,"kai":"第47回","date":"2009年11月8日","horse":"ミヤビランベリ","sexage":"牡6","waku":3,"umaban":6,"pop":11,"odds":"25.1","jockey":"吉田隼人","trainer":"加藤敬二","sire":"オペラハウス","damsire":"ホリスキー","prev_race":"札幌記念","prev_grade":"GII","prev_cat":"G2","prev_venue":"札幌","prev_dist":"芝2000","prev_fin":"14","time":"2:30.9","heads":18,"weather":"晴"},{"year":2008,"kai":"第46回","date":"2008年11月9日","horse":"スクリーンヒーロー","sexage":"牡4","waku":2,"umaban":4,"pop":3,"odds":"8.9","jockey":"蛯名正義","trainer":"鹿戸雄一","sire":"グラスワンダー","damsire":"サンデーサイレンス","prev_race":"オクトーバーS","prev_grade":"1600万下","prev_cat":"条件","prev_venue":"東京","prev_dist":"芝2400","prev_fin":"2","time":"2:30.8","heads":16,"weather":"曇"},{"year":2007,"kai":"第45回","date":"2007年11月4日","horse":"アドマイヤジュピタ","sexage":"牡4","waku":5,"umaban":9,"pop":2,"odds":"5.1","jockey":"村田一誠","trainer":"友道康夫","sire":"フレンチデピュティ","damsire":"リアルシャダイ","prev_race":"鳴滝特別","prev_grade":"1000万下","prev_cat":"条件","prev_venue":"京都","prev_dist":"芝2200","prev_fin":"1","time":"2:30.9","heads":18,"weather":"晴"},{"year":2006,"kai":"第44回","date":"2006年11月5日","horse":"トウショウナイト","sexage":"牡5","waku":6,"umaban":9,"pop":1,"odds":"4.1","jockey":"武士沢友治","trainer":"保田一隆","sire":"ティンバーカントリー","damsire":"Java Gold (米)","prev_race":"京都大賞典","prev_grade":"GII","prev_cat":"G2","prev_venue":"京都","prev_dist":"芝2400","prev_fin":"3","time":"2:31.0","heads":14,"weather":"晴"}];
+
+const POP_BANDS = [
+  { id: "p1", label: "1番人気", test: p => p === 1 },
+  { id: "p23", label: "2〜3番人気", test: p => p >= 2 && p <= 3 },
+  { id: "p45", label: "4〜5番人気", test: p => p >= 4 && p <= 5 },
+  { id: "p6", label: "6番人気以下", test: p => p >= 6 },
+];
+const ZONES = [
+  { id: "in", label: "内（1〜3枠）", test: w => w <= 3 },
+  { id: "mid", label: "中（4〜5枠）", test: w => w >= 4 && w <= 5 },
+  { id: "out", label: "外（6〜8枠）", test: w => w >= 6 },
+];
+const CATS = [
+  { id: "G1", label: "G1" }, { id: "G2", label: "G2" }, { id: "オープン", label: "オープン" }, { id: "条件", label: "条件" },
+];
+const age = r => parseInt(r.sexage.replace(/\D/g, ""), 10);
+const catOf = r => (r.prev_cat === "G3" ? "オープン" : r.prev_cat);
+const count = f => DATA.filter(f).length;
+const N = DATA.length;
+
+/* ---- 傾向まとめ ---- */
+function barList(items) {
+  const max = Math.max(...items.map(i => i.n), 1);
+  return `<ul class="bars">${items.map(i => `
+    <li class="${i.hot ? "hot" : ""}"><span class="lab">${i.label}</span>
+      <span class="track"><span class="fill" style="width:${(i.n / max) * 100}%"></span></span>
+      <span class="val"><b>${i.n}</b>勝 ${Math.round((i.n / N) * 100)}%</span></li>`).join("")}</ul>`;
+}
+function hotMark(items) {
+  const max = Math.max(...items.map(i => i.n));
+  items.forEach(i => (i.hot = i.n === max && max > 0));
+  return items;
+}
+function renderTrend() {
+  const pop1 = count(r => r.pop === 1);
+  const pop13 = count(r => r.pop <= 3);
+  const pop6 = count(r => r.pop >= 6);
+  const popItems = hotMark(POP_BANDS.map(b => ({ label: b.label, n: count(r => b.test(r.pop)) })));
+
+  const wakuItems = hotMark([1, 2, 3, 4, 5, 6, 7, 8].map(w => ({
+    label: `<span class="waku-chip w${w}">${w}</span>${w}枠`, n: count(r => r.waku === w) })));
+  const zoneTxt = ZONES.map(z => `${z.label.replace(/（.*/, "")}${count(r => z.test(r.waku))}勝`).join("・");
+
+  const ages = [["3歳", a => a === 3], ["4歳", a => a === 4], ["5歳", a => a === 5], ["6歳", a => a === 6], ["7歳以上", a => a >= 7]];
+  const ageItems = hotMark(ages.map(([l, t]) => ({ label: l, n: count(r => t(age(r))) })));
+  const age4 = count(r => age(r) === 4);
+
+  const catItems = hotMark(CATS.map(c => ({ label: c.label + "組", n: count(r => catOf(r) === c.id) })));
+  const gradeWins = count(r => r.prev_cat === "G1" || r.prev_cat === "G2");
+
+  const top3 = count(r => parseInt(r.prev_fin, 10) <= 3);
+  const prevFin = hotMark([
+    ["1着", f => f === 1], ["2着", f => f === 2], ["3着", f => f === 3], ["4〜5着", f => f >= 4 && f <= 5], ["6着以下", f => f >= 6],
+  ].map(([l, t]) => ({ label: l, n: count(r => t(parseInt(r.prev_fin, 10))) })));
+
+  document.getElementById("trend").innerHTML = `
+    <div class="box"><h3>人気の分布<small>単勝人気</small></h3>
+      <p class="lead">1番人気<b>${pop1}</b>勝、1〜3番人気<b>${pop13}</b>勝、6番人気以下の穴馬<b>${pop6}</b>勝。</p>
+      ${barList(popItems)}</div>
+    <div class="box"><h3>枠番の分布<small>1〜8枠</small></h3>
+      <p class="lead">${zoneTxt}。</p>
+      ${barList(wakuItems)}</div>
+    <div class="box"><h3>年齢の分布<small>勝ち馬の馬齢</small></h3>
+      <p class="lead">4歳が<b>${age4}</b>勝。20頭中${age4}頭で、${Math.round(age4 / N * 100)}%を占めます。</p>
+      ${barList(ageItems)}</div>
+    <div class="box"><h3>前走の格<small>前走レースの格付け</small></h3>
+      <p class="lead">前走がG1・G2だった馬が<b>${gradeWins}</b>勝。</p>
+      ${barList(catItems)}
+      <p class="note">オープン組はGⅢ・リステッド・オープン特別。条件組は1000万下・1600万下・3勝クラス。</p></div>
+    <div class="box"><h3>前走の着順<small>3着以内＝好走</small></h3>
+      <p class="lead">前走で3着以内だった馬が<b>${top3}</b>勝、4着以下から巻き返したのは${N - top3}勝。</p>
+      ${barList(prevFin)}</div>`;
+}
+
+/* ---- 絞り込み ---- */
+const state = { pop: new Set(), zone: new Set(), cat: new Set() };
+const GROUPS = { pop: POP_BANDS, zone: ZONES, cat: CATS };
+function buildFilters() {
+  for (const key of Object.keys(GROUPS)) {
+    const row = document.querySelector(`.frow[data-key="${key}"]`);
+    GROUPS[key].forEach(opt => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.id = `f-${key}-${opt.id}`;
+      b.textContent = opt.label.replace(/（.*/, ""); b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", () => {
+        state[key].has(opt.id) ? state[key].delete(opt.id) : state[key].add(opt.id);
+        b.setAttribute("aria-pressed", String(state[key].has(opt.id)));
+        renderList();
+      });
+      row.appendChild(b);
+    });
+  }
+  document.getElementById("reset").addEventListener("click", () => {
+    Object.values(state).forEach(s => s.clear());
+    document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", "false"));
+    renderList();
+  });
+}
+function matches(r) {
+  const okPop = !state.pop.size || POP_BANDS.some(b => state.pop.has(b.id) && b.test(r.pop));
+  const okZone = !state.zone.size || ZONES.some(z => state.zone.has(z.id) && z.test(r.waku));
+  const okCat = !state.cat.size || state.cat.has(catOf(r));
+  return okPop && okZone && okCat;
+}
+
+/* ---- 表とカード ---- */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const gradeLabel = g => ({ GI: "G1", GII: "G2", GIII: "G3" }[g] || g);
+function prevHtml(r) {
+  const fin = parseInt(r.prev_fin, 10);
+  return `${esc(r.prev_race)}<span class="prev-g ${esc(r.prev_cat)}">${esc(gradeLabel(r.prev_grade))}</span>
+    <span class="sub">${esc(r.prev_venue)}・${esc(r.prev_dist)}・<span class="${fin <= 3 ? "fin-top" : ""}">${esc(r.prev_fin)}着</span></span>`;
+}
+function renderList() {
+  const rows = DATA.filter(matches);
+  document.getElementById("hit").textContent = rows.length;
+  const tb = document.getElementById("tbody");
+  const cards = document.getElementById("cards");
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="10" class="empty">条件に合う勝ち馬はいません。絞り込みを減らしてください。</td></tr>`;
+    cards.innerHTML = `<p class="empty">条件に合う勝ち馬はいません。絞り込みを減らしてください。</p>`;
+    return;
+  }
+  tb.innerHTML = rows.map(r => `<tr>
+    <td class="yr">${r.year}<small>${esc(r.kai)}</small></td>
+    <td class="waku w${r.waku}">${r.waku}</td>
+    <td class="n">${r.umaban}</td>
+    <td class="horse">${esc(r.horse)}<small>${esc(r.sexage)}</small></td>
+    <td class="n pop ${r.pop <= 3 ? "top" : ""}"><b>${r.pop}</b></td>
+    <td>${esc(r.jockey)}<span class="sub">${esc(r.trainer)}</span></td>
+    <td>${esc(r.sire)}<span class="sub">${esc(r.damsire)}</span></td>
+    <td>${prevHtml(r)}</td>
+    <td class="n">${esc(r.time)}</td>
+    <td class="n">${r.heads}</td></tr>`).join("");
+  cards.innerHTML = rows.map(r => `<article class="card">
+    <div class="cw w${r.waku}"><span class="wk">${r.waku}枠</span><span class="ub">${r.umaban}</span></div>
+    <div class="cb">
+      <div class="top"><span class="y">${r.year}<small>${esc(r.kai)}</small></span><span class="nm">${esc(r.horse)}</span><span class="sa">${esc(r.sexage)}</span></div>
+      <dl>
+        <dt>人気</dt><dd><span class="pop-badge ${r.pop <= 3 ? "fav" : ""}">${r.pop}番人気</span></dd>
+        <dt>騎手</dt><dd>${esc(r.jockey)}（調教師 ${esc(r.trainer)}）</dd>
+        <dt>血統</dt><dd>父 ${esc(r.sire)}／母父 ${esc(r.damsire)}</dd>
+        <dt>前走</dt><dd>${prevHtml(r)}</dd>
+        <dt>タイム</dt><dd class="num">${esc(r.time)}（${r.heads}頭立て）</dd>
+      </dl></div></article>`).join("");
+}
+
+renderTrend();
+buildFilters();
+renderList();
+</script>
+
+</body>
+</html>
