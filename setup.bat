@@ -18,7 +18,7 @@ call .venv\Scripts\activate.bat
 
 echo [2/4] 必要なライブラリを入れています (数分かかります)...
 python -m pip install --upgrade pip > nul
-pip install -e ".[dev,ui]"
+pip install -e ".[dev,ui,ai]"
 if errorlevel 1 goto fail
 
 if exist data\keiba.db goto train

@@ -7,6 +7,7 @@
     keiba evaluate --test-start 2026-01-01
     keiba predict --date 2026-09-26 --bankroll 100000
     keiba backtest --start 2026-01-01
+    keiba ai-predict "ジャパンカップ"   # Claude + Web 検索で全頭分析レポートを生成
 """
 
 from __future__ import annotations
@@ -238,6 +239,39 @@ def _add_strategy_args(s: argparse.ArgumentParser) -> None:
     s.add_argument("--flat", type=int, help="定額買いの金額 (指定するとケリーを使わない)")
 
 
+def cmd_ai_predict(args: argparse.Namespace) -> None:
+    from keiba import ai_analyst
+
+    if not ai_analyst.has_api_key():
+        sys.exit("ANTHROPIC_API_KEY が設定されていません (Claude API キーを環境変数に設定してください)")
+    req = ai_analyst.AnalysisRequest(
+        race_name=args.race_name, year=args.year or "", policy=args.policy,
+        notes=args.notes or "", model=args.ai_model, effort=args.effort,
+    )
+    print(f"「{req.race_name}」を調査・分析しています (数分かかります)...", file=sys.stderr)
+    done = None
+    for ev in ai_analyst.stream_analysis(req):
+        if ev.kind == "search":
+            print(f"  🔍 検索: {ev.text}", file=sys.stderr)
+        elif ev.kind == "fetch":
+            print(f"  📄 取得: {ev.text}", file=sys.stderr)
+        elif ev.kind == "info":
+            print(f"  … {ev.text}", file=sys.stderr)
+        elif ev.kind == "text":
+            print(ev.text, end="", flush=True)
+        elif ev.kind == "done":
+            done = ev
+    print()
+    if done is None:
+        sys.exit("レポートを取得できませんでした")
+    u = done.usage
+    print(f"\n[入力 {u['input_tokens']:,} / 出力 {u['output_tokens']:,} トークン, "
+          f"Web 検索 {u['web_search_requests']} 回]", file=sys.stderr)
+    if not args.no_save:
+        path = ai_analyst.save_report(ai_analyst.format_report(req, done), req.race_name, args.out_dir)
+        print(f"レポートを保存しました: {path}", file=sys.stderr)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="keiba", description="競馬予想支援ソフト")
     p.add_argument("--db", type=Path, default=db.DEFAULT_DB_PATH, help="SQLite DB のパス")
@@ -288,6 +322,19 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--bankroll", type=float, help="資金 (円). 指定すると推奨購入額を表示")
     _add_strategy_args(s)
     s.set_defaults(func=cmd_predict)
+
+    from keiba.ai_analyst import DEFAULT_EFFORT, DEFAULT_MODEL, EFFORT_LEVELS, POLICIES
+
+    s = sub.add_parser("ai-predict", help="Claude + Web 検索で指定レースの全頭分析・買い目レポートを生成")
+    s.add_argument("race_name", help="レース名 (例: ジャパンカップ)")
+    s.add_argument("--year", help="開催年 (省略時は次回開催)")
+    s.add_argument("--policy", default=POLICIES[0], help=f"重視する方針 (既定: {POLICIES[0]})")
+    s.add_argument("--notes", help="開催日・競馬場の指定などの補足")
+    s.add_argument("--ai-model", default=DEFAULT_MODEL, help=f"Claude のモデル (既定: {DEFAULT_MODEL})")
+    s.add_argument("--effort", default=DEFAULT_EFFORT, choices=EFFORT_LEVELS, help="推論の深さ")
+    s.add_argument("--out-dir", default="reports", help="レポートの保存先 (既定: reports)")
+    s.add_argument("--no-save", action="store_true", help="レポートをファイル保存しない")
+    s.set_defaults(func=cmd_ai_predict)
     return p
 
 

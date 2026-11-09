@@ -1,5 +1,28 @@
 # 競馬予想ソフト 企画案
 
+## AI 全頭分析 (Claude + Web 検索)
+
+レース名を入れるだけで、Claude が Web で出馬表・オッズ・馬場・調教・過去走などを調べ、
+「全頭評価ランキング → 本命/対抗/穴/危険な人気馬 → 展開予測 → 買い目 (的中率最優先/バランス/穴馬型)
+→ 信頼度 S〜D → 購入候補/条件付き購入/見送り」までを Markdown レポートにする。
+分析の指示は `keiba/prompts/master_prompt.md` (全頭徹底分析マスタープロンプト) にあり、編集すれば挙動を変えられる。
+
+準備: [Claude API キー](https://console.anthropic.com/) を環境変数 `ANTHROPIC_API_KEY` に設定する
+(Web 画面ではサイドバーで入力してもよい)。API 利用料がかかる (1 レースで数十回の Web 検索と長文出力を行う)。
+
+- **Windows**: `setup.bat` の後、**`ai_start.bat`** をダブルクリック → `http://localhost:8502` が開く
+- **Web UI**: `streamlit run ai_app.py`
+- **CLI**:
+  ```bash
+  pip install -e '.[ai]'
+  keiba ai-predict "ジャパンカップ"                       # 次回開催を対象
+  keiba ai-predict "有馬記念" --year 2026 --effort xhigh  # 年を指定・より深く推論
+  keiba ai-predict "東京大賞典" --notes "大井11R" --policy "的中率・回収率バランス"
+  ```
+  レポートは `reports/日時_レース名.md` に保存される (`--no-save` で保存しない)。
+
+AI の推定であり的中は保証されない。馬番・オッズ・取消は必ず公式発表で確認すること。
+
 ## Windows での使い方 (ダブルクリック)
 
 1. [Python](https://www.python.org/downloads/) 3.10 以上をインストールする
