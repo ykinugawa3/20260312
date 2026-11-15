@@ -18,6 +18,7 @@
   --gold: #b8860b;
   --bar: #2f7d46;
   --bar2: #9cc7a8;
+  --rain: rgba(40, 90, 160, .35);
   --font-display: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", sans-serif;
   --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
 }
@@ -25,13 +26,13 @@
   :root:not([data-theme="light"]) {
     --bg: #0f1612; --surface: #18221c; --ink: #e6efe8; --muted: #93a598; --line: #2b3a31;
     --turf: #2a6b3d; --turf-dark: #1d4f2c; --rail: #d9ddd5; --accent: #ff4d5e; --accent-ink: #1a0508;
-    --gold: #e0b44c; --bar: #4fae6c; --bar2: #2e5b3c; color-scheme: dark;
+    --gold: #e0b44c; --bar: #4fae6c; --bar2: #2e5b3c; --rain: rgba(170, 200, 240, .35); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0f1612; --surface: #18221c; --ink: #e6efe8; --muted: #93a598; --line: #2b3a31;
   --turf: #2a6b3d; --turf-dark: #1d4f2c; --rail: #d9ddd5; --accent: #ff4d5e; --accent-ink: #1a0508;
-  --gold: #e0b44c; --bar: #4fae6c; --bar2: #2e5b3c; color-scheme: dark;
+  --gold: #e0b44c; --bar: #4fae6c; --bar2: #2e5b3c; --rain: rgba(170, 200, 240, .35); color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -120,6 +121,11 @@ details.horse summary .meta { font-size: .72rem; color: var(--muted); }
           <button data-v="0">良</button><button data-v="1">稍重</button><button data-v="2">重</button><button data-v="3">不良</button>
         </div>
       </div>
+      <div class="row"><label>天候</label>
+        <div class="seg" id="weather" role="group" aria-label="天候">
+          <button data-v="0">晴</button><button data-v="1">曇</button><button data-v="2">小雨</button><button data-v="3">雨</button>
+        </div>
+      </div>
       <div class="row"><label>ペース</label>
         <div class="seg" id="pace" role="group" aria-label="ペース">
           <button data-v="auto">おまかせ</button><button data-v="slow">スロー</button><button data-v="mid">ミドル</button><button data-v="high">ハイ</button>
@@ -146,7 +152,7 @@ details.horse summary .meta { font-size: .72rem; color: var(--muted); }
     <h2>10,000回シミュレーション</h2>
     <div class="card" style="display:grid;gap:10px">
       <button class="btn primary" id="mcBtn">同じ条件で10,000回走らせる</button>
-      <p class="note" id="mcNote">馬場とペースの設定を反映します。ペース「おまかせ」は逃げ・先行馬の数から毎回抽選します。</p>
+      <p class="note" id="mcNote">天候・馬場・ペースの設定を反映します。雨はレース中に馬場が悪くなる分として、道悪の得意・不得意をさらに強く効かせます。ペース「おまかせ」は逃げ・先行馬の数から毎回抽選します。</p>
       <div class="tablewrap"><table id="mcTbl"></table></div>
     </div>
   </section>
@@ -218,6 +224,13 @@ const PACE_BONUS = { // 脚質ごとの展開ボーナス (点)
   high: [-2.2, -0.8, 0.8, 1.6],
 };
 const SIGMA = 1.8;
+// 天候: 降雨はレース中の馬場悪化分として道悪の影響に上乗せ (wet)、紛れ (sig) とタイム (time) も増やす
+const WEATHER = [
+  { name: "晴", wet: 0, sig: 1.0, time: 0 },
+  { name: "曇", wet: 0, sig: 1.0, time: 0 },
+  { name: "小雨", wet: 0.5, sig: 1.04, time: 0.4 },
+  { name: "雨", wet: 1.0, sig: 1.08, time: 0.9 },
+];
 function gauss(rng) { let u = 0, v = 0; while (u === 0) u = rng(); while (v === 0) v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 function paceWeights(field) {
   const fronts = field.filter(h => !h.out && h.style === 0).length;
@@ -232,23 +245,24 @@ function drawPace(paceSetting, field, rng) {
   const w = paceWeights(field); const r = rng();
   return r < w.slow ? "slow" : r < w.slow + w.mid ? "mid" : "high";
 }
-function performance(h, going, pace, rng) {
-  const gatePen = -0.03 * (h.no - 1);
-  return h.rating + h.wet * going * 0.8 + PACE_BONUS[pace][h.style] + gatePen + gauss(rng) * SIGMA * h.unc;
+function performance(h, going, pace, rng, weather = 1) {
+  const gatePen = -0.03 * (h.no - 1), w = WEATHER[weather];
+  const effGoing = Math.min(3.5, going + w.wet);
+  return h.rating + h.wet * effGoing * 0.8 + PACE_BONUS[pace][h.style] + gatePen + gauss(rng) * SIGMA * h.unc * w.sig;
 }
-function runOnce(field, going, paceSetting, rng) {
+function runOnce(field, going, paceSetting, rng, weather = 1) {
   const pace = drawPace(paceSetting, field, rng);
-  const runners = field.filter(h => !h.out).map(h => ({ h, perf: performance(h, going, pace, rng) }));
+  const runners = field.filter(h => !h.out).map(h => ({ h, perf: performance(h, going, pace, rng, weather) }));
   runners.sort((a, b) => b.perf - a.perf);
   return { pace, runners };
 }
-function monteCarlo(field, going, paceSetting, n, rng) {
+function monteCarlo(field, going, paceSetting, n, rng, weather = 1) {
   const idx = new Map(field.map((h, i) => [h.no, i]));
   const win = new Float64Array(field.length), top2 = new Float64Array(field.length), top3 = new Float64Array(field.length);
   const tops = new Array(n);
   const paceCount = { slow: 0, mid: 0, high: 0 };
   for (let s = 0; s < n; s++) {
-    const { pace, runners } = runOnce(field, going, paceSetting, rng);
+    const { pace, runners } = runOnce(field, going, paceSetting, rng, weather);
     paceCount[pace]++;
     const a = runners[0].h.no, b = runners[1].h.no, c = runners[2].h.no;
     win[idx.get(a)]++; top2[idx.get(a)]++; top2[idx.get(b)]++;
@@ -273,7 +287,7 @@ function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; le
 // ----------------------------------------------------------------- 状態
 const STORE_KEY = "yodo-sim-field-v1";
 let field = loadField();
-let going = 1, paceSetting = "auto", speed = 3, betType = "wide";
+let going = 1, weather = 1, paceSetting = "auto", speed = 3, betType = "wide";
 let picked = [], tickets = [], lastMC = null;
 const $ = id => document.getElementById(id);
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -306,8 +320,8 @@ function trackPoint(d, lane) { // d: 走った距離, lane: 内ラチからの�
 const smooth = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 function buildRace() {
   const rng = mulberry32((Math.random() * 2 ** 31) | 0);
-  const { pace, runners } = runOnce(field, going, paceSetting, rng);
-  const T = 132.0 + [0, 1.2, 2.6, 4.5][going] + { slow: 1.3, mid: 0, high: -0.7 }[pace];
+  const { pace, runners } = runOnce(field, going, paceSetting, rng, weather);
+  const T = 132.0 + [0, 1.2, 2.6, 4.5][going] + WEATHER[weather].time + { slow: 1.3, mid: 0, high: -0.7 }[pace];
   const midF = { slow: 0.955, mid: 1.0, high: 1.035 }[pace], lateF = { slow: 1.075, mid: 1.0, high: 0.955 }[pace];
   const fac = d => (d < 200 ? 0.72 + 0.28 * (d / 200) : d < 1600 ? midF : lateF);
   let tt = 0; for (let d = 0; d < 2200; d += 10) tt += 10 / fac(d + 5);
@@ -334,7 +348,7 @@ function laneAt(x, d) {
   const settle = smooth((d - 120) / 260); // 1コーナーまでに内へ
   let lane = x.laneBase * (1 - 0.65 * settle) + 0.8;
   const straight = smooth((d - 1780) / 120);
-  lane += straight * x.laneKick + (going >= 2 ? straight * 2 : 0); // 道悪は内が荒れて外へ
+  lane += straight * x.laneKick + (going >= 2 || weather >= 3 ? straight * 2 : 0); // 道悪・雨は内が荒れて外へ
   return Math.min(16, lane) + (p > 0.98 ? 0 : 0);
 }
 let race = null, raf = 0, lastTs = 0;
@@ -359,7 +373,7 @@ function nm(x) { return `${x.h.no}${x.h.name}`; }
 function commentary() {
   const ev = race.events, D = race.D, o = order();
   const once = (k, f) => { if (!ev.has(k)) { ev.add(k); f(); } };
-  if (D > 0) once("start", () => say("スタートしました！"));
+  if (D > 0) once("start", () => say(`スタートしました！ 天候${WEATHER[weather].name}、馬場${["良", "稍重", "重", "不良"][going]}`));
   if (D > 170) once("hana", () => say(`ハナを切ったのは${nm(o[0])}。2番手に${nm(o[1])}`));
   if (D > 382) once("c1", () => say(`1コーナーへ。先頭${nm(o[0])}、${nm(o[1])}、${nm(o[2])}と続きます`));
   if (D > 1000) once("1000", () => {
@@ -421,6 +435,32 @@ function drawTrack() {
     ctx.fillText(x.h.no, tx(px), ty(py) + 0.5);
   }
   ctx.textBaseline = "alphabetic";
+  drawWeather(ctx, W, H, dpr);
+}
+function drawWeather(ctx, W, H, dpr) {
+  const x0 = 22 * dpr, y0 = 22 * dpr, ink = css("--muted");
+  ctx.save();
+  if (weather === 0) { // 太陽
+    ctx.fillStyle = css("--gold"); ctx.beginPath(); ctx.arc(x0, y0, 7 * dpr, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = css("--gold"); ctx.lineWidth = 1.6 * dpr;
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; ctx.beginPath(); ctx.moveTo(x0 + Math.cos(a) * 10 * dpr, y0 + Math.sin(a) * 10 * dpr); ctx.lineTo(x0 + Math.cos(a) * 13 * dpr, y0 + Math.sin(a) * 13 * dpr); ctx.stroke(); }
+  } else { // 雲
+    ctx.fillStyle = ink; ctx.globalAlpha = 0.55;
+    [[-6, 2, 6], [1, -2, 8], [8, 2, 6]].forEach(([dx, dy, r]) => { ctx.beginPath(); ctx.arc(x0 + dx * dpr, y0 + dy * dpr, r * dpr, 0, Math.PI * 2); ctx.fill(); });
+    ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = ink; ctx.font = `${10 * dpr}px ${css("--font-body")}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillText(WEATHER[weather].name, x0 + 18 * dpr, y0);
+  if (weather >= 2) { // 雨すじ (レース中は時間で流れる)
+    const n = weather === 3 ? 90 : 40, t = race ? race.t * 6 : 0, len = 9 * dpr;
+    ctx.strokeStyle = css("--rain"); ctx.lineWidth = 1 * dpr; ctx.beginPath();
+    for (let k = 0; k < n; k++) {
+      const rx = ((k * 97.3) % 1) * 0 + ((k * 0.6180339 * W) % W), ry = ((k * 53.7 + t * 40 * dpr) % (H + len)) - len;
+      ctx.moveTo(rx, ry); ctx.lineTo(rx - 2 * dpr, ry + len);
+    }
+    ctx.stroke();
+  }
+  ctx.restore(); ctx.textBaseline = "alphabetic";
 }
 function drawQueue() {
   const dpr = fit(queueCv), ctx = queueCv.getContext("2d"), W = queueCv.width, H = queueCv.height;
@@ -476,7 +516,7 @@ function showResult() {
 function runMC() {
   const btn = $("mcBtn"); btn.disabled = true; btn.textContent = "計算中…";
   setTimeout(() => {
-    lastMC = monteCarlo(field, going, paceSetting, 10000, mulberry32((Math.random() * 2 ** 31) | 0));
+    lastMC = monteCarlo(field, going, paceSetting, 10000, mulberry32((Math.random() * 2 ** 31) | 0), weather);
     btn.disabled = false; btn.textContent = "同じ条件でもう一度10,000回";
     renderMC(); renderTickets();
   }, 30);
@@ -484,7 +524,7 @@ function runMC() {
 function renderMC() {
   if (!lastMC) return;
   const n = lastMC.n, pc = lastMC.paceCount;
-  $("mcNote").textContent = `馬場：${["良", "稍重", "重", "不良"][going]} ／ ペース内訳：スロー${Math.round(pc.slow / n * 100)}%・ミドル${Math.round(pc.mid / n * 100)}%・ハイ${Math.round(pc.high / n * 100)}%`;
+  $("mcNote").textContent = `天候：${WEATHER[weather].name} ／ 馬場：${["良", "稍重", "重", "不良"][going]} ／ ペース内訳：スロー${Math.round(pc.slow / n * 100)}%・ミドル${Math.round(pc.mid / n * 100)}%・ハイ${Math.round(pc.high / n * 100)}%`;
   const rows = field.map((h, i) => ({ h, w: lastMC.win[i] / n, t3: lastMC.top3[i] / n })).filter(r => !r.h.out).sort((a, b) => b.t3 - a.t3);
   const maxT3 = Math.max(...rows.map(r => r.t3));
   let html = "<thead><tr><th>馬</th><th class='r'>勝率</th><th class='r'>3着内</th><th style='width:32%'></th></tr></thead><tbody>";
@@ -507,7 +547,7 @@ function addTicket(type, horses) {
 }
 function renderTickets() {
   if (!tickets.length) { $("tickets").innerHTML = `<p class="note">馬番を選んで「買い目に追加」するか、予想のプリセットを押してください。</p>`; $("anyHit").textContent = "—"; return; }
-  if (!lastMC) { lastMC = monteCarlo(field, going, paceSetting, 10000, mulberry32(12345)); renderMC(); }
+  if (!lastMC) { lastMC = monteCarlo(field, going, paceSetting, 10000, mulberry32(12345), weather); renderMC(); }
   const tops = lastMC.tops, n = lastMC.n; let any = 0;
   const hits = tickets.map(() => 0);
   for (let s = 0; s < n; s++) { let hit = false; tickets.forEach((t, i) => { if (ticketHits(t, tops[s])) { hits[i]++; hit = true; } }); if (hit) any++; }
@@ -548,6 +588,7 @@ function seg(id, value, onChange) {
   set(value); box.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; set(b.dataset.v); onChange(b.dataset.v); });
 }
 seg("going", going, v => { going = +v; lastMC = null; $("mcTbl").innerHTML = ""; $("mcNote").textContent = "条件が変わりました。もう一度計算してください。"; renderTickets(); });
+seg("weather", weather, v => { weather = +v; lastMC = null; $("mcTbl").innerHTML = ""; $("mcNote").textContent = "条件が変わりました。もう一度計算してください。"; renderTickets(); if (!race || race.done) draw(); });
 seg("pace", paceSetting, v => { paceSetting = v; lastMC = null; $("mcTbl").innerHTML = ""; $("mcNote").textContent = "条件が変わりました。もう一度計算してください。"; renderTickets(); });
 seg("speed", speed, v => { speed = +v; });
 seg("betType", betType, v => { betType = v; picked = picked.slice(0, NEED[v]); renderPicker(); });
