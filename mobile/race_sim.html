@@ -428,16 +428,16 @@ function drawQueue() {
   let span = 40 * 2.4;
   if (race) { const o0 = order(); const g = (o0[0].d ?? 0) - (o0[o0.length - 1].d ?? 0); race.span = race.span ? race.span + (Math.min(40, Math.max(8, g / 2.4 * 1.15)) * 2.4 - race.span) * 0.08 : Math.max(8 * 2.4, g * 1.15); span = race.span; }
   const spanL = span / 2.4, tick = spanL > 24 ? 5 : spanL > 12 ? 2 : 1;
-  const pad = 16 * dpr, right = W - pad, left = pad;
+  const pad = 18 * dpr, right = W - pad, left = pad;
   ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.font = `${9.5 * dpr}px ${css("--font-body")}`; ctx.textAlign = "center";
-  for (let L = 0; L <= spanL; L += tick) { const x = right - (L * 2.4 / span) * (right - left); ctx.fillStyle = "rgba(255,255,255,.18)"; ctx.fillRect(x, 0, 1, H - 14 * dpr); ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.fillText(L === 0 ? "先頭" : `${L}馬身`, x, H - 3 * dpr); }
+  for (let L = 0; L <= spanL; L += tick) { const x = left + (L * 2.4 / span) * (right - left); ctx.fillStyle = "rgba(255,255,255,.18)"; ctx.fillRect(x, 0, 1, H - 14 * dpr); ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.fillText(L === 0 ? "先頭" : `${L}馬身`, x, H - 3 * dpr); }
   if (!race) { ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.font = `${12 * dpr}px ${css("--font-body")}`; ctx.fillText("隊列（先頭からの差）がここに出ます", W / 2, H / 2); return; }
   const o = order(); const leadD = o[0].d ?? 0; const rows = 5, rowH = (H - 20 * dpr) / rows; const rad = Math.min(rowH * 0.46, 11 * dpr);
-  const lastX = new Array(rows).fill(Infinity);
-  o.forEach((x) => {
-    const gap = Math.min(span, leadD - (x.d ?? 0)); let px = right - (gap / span) * (right - left);
-    let row = 0; while (row < rows - 1 && lastX[row] - px < rad * 2.05) row++;
-    if (lastX[row] - px < rad * 2.05) px = lastX[row] - rad * 2.05; // 全段埋まったら後ろへずらす
+  const lastX = new Array(rows).fill(-Infinity);
+  o.forEach((x) => { // 先頭が左端、後続ほど右へ
+    const gap = Math.min(span, leadD - (x.d ?? 0)); let px = left + (gap / span) * (right - left);
+    let row = 0; while (row < rows - 1 && px - lastX[row] < rad * 2.05) row++;
+    if (px - lastX[row] < rad * 2.05) px = lastX[row] + rad * 2.05; // 全段埋まったら後ろへずらす
     lastX[row] = px; const py = 4 * dpr + rowH * row + rowH / 2; const [bg, fg] = colorsOf(x.h.no);
     ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.lineWidth = dpr; ctx.stroke();
     ctx.fillStyle = fg; ctx.font = `700 ${rad * 1.05}px ${css("--font-body")}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(x.h.no, px, py + 0.5); ctx.textBaseline = "alphabetic";
@@ -561,6 +561,7 @@ $("addTicket").addEventListener("click", () => { if (picked.length !== NEED[betT
 $("tickets").addEventListener("click", e => { const b = e.target.closest("[data-del]"); if (!b) return; tickets.splice(+b.dataset.del, 1); renderTickets(); });
 $("preset1").addEventListener("click", () => { [[7, 16], [7, 9], [6, 7], [7, 13]].forEach(p => addTicket("wide", p)); renderTickets(); });
 $("preset2").addEventListener("click", () => { [[7, 9, 6], [7, 9, 11], [7, 9, 13], [7, 9, 15], [7, 9, 16], [7, 16, 6], [7, 16, 11], [7, 16, 13], [7, 16, 15]].forEach(p => addTicket("sanfuku", p)); renderTickets(); });
+$("mcBtn").addEventListener("click", runMC);
 $("runBtn").addEventListener("click", startRace);
 $("skipBtn").addEventListener("click", skipRace);
 window.addEventListener("resize", () => { if (!race || race.done) draw(); });
