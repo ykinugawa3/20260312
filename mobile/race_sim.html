@@ -94,7 +94,7 @@ details.horse summary::-webkit-details-marker { display: none; }
 details.horse summary .nm { flex: 1; min-width: 0; font-weight: 700; }
 details.horse summary .meta { font-size: .72rem; color: var(--muted); }
 .edit { display: grid; gap: 8px; padding: 10px 0 4px; }
-.edit label { display: grid; grid-template-columns: 5.5em 1fr 2.8em; gap: 8px; align-items: center; font-size: .8rem; }
+.edit label { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 2.8em; gap: 8px; align-items: center; font-size: .8rem; }
 .edit input[type=range] { width: 100%; accent-color: var(--turf); }
 .edit select { font: inherit; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 .edit .out { text-align: right; font-variant-numeric: tabular-nums; }
@@ -119,6 +119,11 @@ details.horse summary .meta { font-size: .72rem; color: var(--muted); }
       <div class="row"><label>馬場</label>
         <div class="seg" id="going" role="group" aria-label="馬場状態">
           <button data-v="0">良</button><button data-v="1">稍重</button><button data-v="2">重</button><button data-v="3">不良</button>
+        </div>
+      </div>
+      <div class="row"><label>内の状態</label>
+        <div class="seg" id="inner" role="group" aria-label="内ラチ沿いの芝の状態">
+          <button data-v="0">良好</button><button data-v="1">荒れ（外差し有利）</button>
         </div>
       </div>
       <div class="row"><label>天候</label>
@@ -183,7 +188,7 @@ details.horse summary .meta { font-size: .72rem; color: var(--muted); }
       <div id="horseList"></div>
       <div class="row" style="margin-top:10px"><button class="btn" id="resetBtn">初期値に戻す</button><span class="muted" id="saveNote"></span></div>
     </div>
-    <p class="note">能力：ふだんの実力（点）。道悪：重い馬場での上積み・割引。ムラ：結果の振れ幅（休み明けや情報不足ほど大きく）。調整はこの端末にだけ保存されます。</p>
+    <p class="note">能力：ふだんの実力（点）。道悪：重い馬場での上積み・割引。ムラ：結果の振れ幅（情報不足ほど大きく）。斤量：56kgより1kg軽いごとに+0.4点。混合実績：牡馬混合重賞で好走した馬に+0.3〜1.0点。休み明け：故障・病気明けは−1.2点で、ムラも大きくなります。調整はこの端末にだけ保存されます。</p>
   </section>
 </div>
 
@@ -193,24 +198,24 @@ const FRAME = { 1:["#ffffff","#111"],2:["#222222","#fff"],3:["#e60012","#fff"],4
 const STYLES = ["逃げ","先行","差し","追込"];
 // 初期データ: 2026/11/14 の検索情報からの主観評価 (rating は calibrate で調整済み)
 const DEFAULT_FIELD = [
-  {no:1, name:"ラヴァンダ", jockey:"岩田望", info:"牝5", style:1, rating:64.9, wet:0.0, unc:1.0},
-  {no:2, name:"レイクラシック", jockey:"西村淳", info:"牝3", style:2, rating:63.5, wet:0.0, unc:1.2},
-  {no:3, name:"ステレンボッシュ", jockey:"池添", info:"牝5", style:2, rating:66.4, wet:-1.5, unc:1.0},
-  {no:4, name:"エストゥペンダ", jockey:"荻野極", info:"牝4", style:2, rating:63.8, wet:0.0, unc:1.2},
-  {no:5, name:"ニシノティアモ", jockey:"津村", info:"牝5", style:2, rating:63.7, wet:0.0, unc:1.2},
-  {no:6, name:"ヴーレヴー", jockey:"吉田隼(予定)", info:"牝", style:1, rating:64.4, wet:1.5, unc:1.0},
-  {no:7, name:"カムニャック", jockey:"川田", info:"牝4", style:2, rating:67.0, wet:0.5, unc:1.0},
-  {no:8, name:"レーゼドラマ", jockey:"松若", info:"牝4", style:0, rating:62.7, wet:0.0, unc:1.2},
-  {no:9, name:"クイーンズウォーク", jockey:"C.デムーロ", info:"牝", style:2, rating:65.0, wet:1.8, unc:1.0},
-  {no:10, name:"セキトバイースト", jockey:"浜中", info:"牝", style:0, rating:63.8, wet:1.2, unc:1.1},
-  {no:11, name:"ジュウリョクピエロ", jockey:"今村", info:"牝3", style:3, rating:66.3, wet:0.0, unc:1.45},
-  {no:12, name:"シャドウメテオ", jockey:"三浦", info:"牝4", style:2, rating:63.8, wet:0.0, unc:1.2},
-  {no:13, name:"ジョスラン", jockey:"ルメール(予定)", info:"牝", style:1, rating:65.5, wet:0.5, unc:1.0},
-  {no:14, name:"チェルヴィニア", jockey:"マーカンド", info:"牝5", style:2, rating:65.5, wet:0.0, unc:1.1},
-  {no:15, name:"ラフターラインズ", jockey:"武豊", info:"牝3", style:2, rating:66.2, wet:0.0, unc:1.1},
-  {no:16, name:"アクアヴァーナル", jockey:"松山", info:"牝5", style:2, rating:66.1, wet:0.8, unc:1.0},
-  {no:17, name:"ケリフレッドアスク", jockey:"北村友", info:"牝4", style:1, rating:64.2, wet:0.0, unc:1.2},
-  {no:18, name:"コガネノソラ", jockey:"丹内", info:"牝5", style:1, rating:63.7, wet:1.5, unc:1.1},
+  {no:1, name:"ラヴァンダ", jockey:"岩田望", info:"牝5", style:1, rating:64.9, wet:0.0, unc:1.0, kg:56, mixed:0, layoff:0},
+  {no:2, name:"レイクラシック", jockey:"西村淳", info:"牝3", style:2, rating:63.5, wet:0.0, unc:1.35, kg:54, mixed:0, layoff:0},
+  {no:3, name:"ステレンボッシュ", jockey:"池添", info:"牝5", style:2, rating:66.4, wet:-1.5, unc:1.0, kg:56, mixed:0, layoff:0},
+  {no:4, name:"エストゥペンダ", jockey:"荻野極", info:"牝4", style:2, rating:63.8, wet:0.0, unc:1.35, kg:56, mixed:0, layoff:0},
+  {no:5, name:"ニシノティアモ", jockey:"津村", info:"牝5", style:2, rating:63.7, wet:0.0, unc:1.35, kg:56, mixed:0, layoff:0},
+  {no:6, name:"ヴーレヴー", jockey:"吉田隼(予定)", info:"牝", style:1, rating:64.4, wet:1.5, unc:1.0, kg:56, mixed:2, layoff:0},
+  {no:7, name:"カムニャック", jockey:"川田", info:"牝4", style:2, rating:67.0, wet:0.5, unc:1.0, kg:56, mixed:0, layoff:0},
+  {no:8, name:"レーゼドラマ", jockey:"松若", info:"牝4", style:0, rating:62.7, wet:0.0, unc:1.2, kg:56, mixed:0, layoff:0},
+  {no:9, name:"クイーンズウォーク", jockey:"C.デムーロ", info:"牝", style:2, rating:65.0, wet:1.8, unc:1.0, kg:56, mixed:3, layoff:0},
+  {no:10, name:"セキトバイースト", jockey:"浜中", info:"牝", style:0, rating:63.8, wet:1.2, unc:1.1, kg:56, mixed:0, layoff:0},
+  {no:11, name:"ジュウリョクピエロ", jockey:"今村", info:"牝3", style:3, rating:66.3, wet:0.0, unc:1.2, kg:54, mixed:0, layoff:2},
+  {no:12, name:"シャドウメテオ", jockey:"三浦", info:"牝4", style:2, rating:63.8, wet:0.0, unc:1.35, kg:56, mixed:0, layoff:0},
+  {no:13, name:"ジョスラン", jockey:"ルメール(予定)", info:"牝", style:1, rating:65.5, wet:0.5, unc:1.0, kg:56, mixed:0, layoff:0},
+  {no:14, name:"チェルヴィニア", jockey:"マーカンド", info:"牝5", style:2, rating:65.5, wet:0.0, unc:1.1, kg:56, mixed:0, layoff:0},
+  {no:15, name:"ラフターラインズ", jockey:"武豊", info:"牝3", style:2, rating:66.2, wet:0.0, unc:1.1, kg:54, mixed:2, layoff:1},
+  {no:16, name:"アクアヴァーナル", jockey:"松山", info:"牝5", style:2, rating:66.1, wet:0.8, unc:1.0, kg:56, mixed:2, layoff:0},
+  {no:17, name:"ケリフレッドアスク", jockey:"北村友", info:"牝4", style:1, rating:64.2, wet:0.0, unc:1.2, kg:56, mixed:0, layoff:0},
+  {no:18, name:"コガネノソラ", jockey:"丹内", info:"牝5", style:1, rating:63.7, wet:1.5, unc:1.1, kg:56, mixed:0, layoff:0},
 ];
 const frameOf = (no, n) => { // JRA方式: 外枠から順に多頭になる (18頭なら7・8枠が3頭)
   if (n <= 8) return no;
@@ -224,6 +229,20 @@ const PACE_BONUS = { // 脚質ごとの展開ボーナス (点)
   high: [-2.2, -0.8, 0.8, 1.6],
 };
 const SIGMA = 1.8;
+const WET_K = 0.5;           // 道悪適性の効き (反省: 0.8 は効かせすぎ)
+const KG_K = 0.4;            // 斤量 1kg あたりの点 (56kg 基準。3歳 54kg は +0.8)
+const MIXED = [              // 牝馬限定戦での牡馬混合重賞実績
+  { name: "なし・不明", pt: 0 }, { name: "混合OP・重賞で掲示板", pt: 0.3 },
+  { name: "混合重賞で3着内", pt: 0.6 }, { name: "混合重賞で勝利", pt: 1.0 },
+];
+const LAYOFF = [             // 休み明けの種類 (pt: 能力の加減, unc: ムラの上乗せ)
+  { name: "使って来た・不明", pt: 0, unc: 0 }, { name: "計画的な直行（外厩など）", pt: -0.3, unc: 0.1 },
+  { name: "故障・病気明け", pt: -1.2, unc: 0.25 },
+];
+const INNER_BONUS = [        // 内の状態別の脚質ボーナス [逃げ,先行,差し,追込]
+  [0, 0, 0, 0], [-0.6, -0.3, 0.5, 0.7],
+];
+const MODEL_OPTS = { inner: 1 };  // 0: 内も良好 / 1: 内が荒れて外差し有利
 // 天候: 降雨はレース中の馬場悪化分として道悪の影響に上乗せ (wet)、紛れ (sig) とタイム (time) も増やす
 const WEATHER = [
   { name: "晴", wet: 0, sig: 1.0, time: 0 },
@@ -247,8 +266,9 @@ function drawPace(paceSetting, field, rng) {
 }
 function performance(h, going, pace, rng, weather = 1) {
   const gatePen = -0.03 * (h.no - 1), w = WEATHER[weather];
-  const effGoing = Math.min(3.5, going + w.wet);
-  return h.rating + h.wet * effGoing * 0.8 + PACE_BONUS[pace][h.style] + gatePen + gauss(rng) * SIGMA * h.unc * w.sig;
+  const effGoing = Math.min(3.5, going + w.wet), lay = LAYOFF[h.layoff || 0];
+  const extra = (56 - (h.kg ?? 56)) * KG_K + MIXED[h.mixed || 0].pt + lay.pt + INNER_BONUS[MODEL_OPTS.inner][h.style];
+  return h.rating + extra + h.wet * effGoing * WET_K + PACE_BONUS[pace][h.style] + gatePen + gauss(rng) * SIGMA * (h.unc + lay.unc) * w.sig;
 }
 function runOnce(field, going, paceSetting, rng, weather = 1) {
   const pace = drawPace(paceSetting, field, rng);
@@ -285,14 +305,14 @@ function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; le
 // ===================================================================== MODEL END
 
 // ----------------------------------------------------------------- 状態
-const STORE_KEY = "yodo-sim-field-v1";
+const STORE_KEY = "yodo-sim-field-v2";
 let field = loadField();
 let going = 1, weather = 1, paceSetting = "auto", speed = 3, betType = "wide";
 let picked = [], tickets = [], lastMC = null;
 const $ = id => document.getElementById(id);
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 function loadField() {
-  try { const s = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); if (Array.isArray(s) && s.length === DEFAULT_FIELD.length) return s; } catch (e) {}
+  try { const s = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); if (Array.isArray(s) && s.length === DEFAULT_FIELD.length) return s.map((h, i) => ({ ...DEFAULT_FIELD[i], ...h })); } catch (e) {}
   return DEFAULT_FIELD.map(h => ({ ...h, out: false }));
 }
 function saveField() { try { localStorage.setItem(STORE_KEY, JSON.stringify(field)); $("saveNote").textContent = "この端末に保存しました"; } catch (e) { $("saveNote").textContent = ""; } }
@@ -524,7 +544,7 @@ function runMC() {
 function renderMC() {
   if (!lastMC) return;
   const n = lastMC.n, pc = lastMC.paceCount;
-  $("mcNote").textContent = `天候：${WEATHER[weather].name} ／ 馬場：${["良", "稍重", "重", "不良"][going]} ／ ペース内訳：スロー${Math.round(pc.slow / n * 100)}%・ミドル${Math.round(pc.mid / n * 100)}%・ハイ${Math.round(pc.high / n * 100)}%`;
+  $("mcNote").textContent = `内：${MODEL_OPTS.inner ? "荒れ" : "良好"} ／ 天候：${WEATHER[weather].name} ／ 馬場：${["良", "稍重", "重", "不良"][going]} ／ ペース内訳：スロー${Math.round(pc.slow / n * 100)}%・ミドル${Math.round(pc.mid / n * 100)}%・ハイ${Math.round(pc.high / n * 100)}%`;
   const rows = field.map((h, i) => ({ h, w: lastMC.win[i] / n, t3: lastMC.top3[i] / n })).filter(r => !r.h.out).sort((a, b) => b.t3 - a.t3);
   const maxT3 = Math.max(...rows.map(r => r.t3));
   let html = "<thead><tr><th>馬</th><th class='r'>勝率</th><th class='r'>3着内</th><th style='width:32%'></th></tr></thead><tbody>";
@@ -562,11 +582,14 @@ function renderTickets() {
 function renderHorses() {
   $("horseList").innerHTML = field.map((h, i) => `
   <details class="horse ${h.out ? "scratched" : ""}" data-i="${i}">
-    <summary>${numChip(h.no)}<span class="nm">${h.name}</span><span class="meta">${h.info}・${h.jockey}・${STYLES[h.style]}</span></summary>
+    <summary>${numChip(h.no)}<span class="nm">${h.name}</span><span class="meta">${h.info}・${h.kg}kg・${h.jockey}・${STYLES[h.style]}</span></summary>
     <div class="edit">
       <label>能力<input type="range" id="rt${i}" min="55" max="75" step="0.1" value="${h.rating}" data-k="rating"><span class="out">${(+h.rating).toFixed(1)}</span></label>
       <label>道悪<input type="range" id="wt${i}" min="-2" max="2" step="0.1" value="${h.wet}" data-k="wet"><span class="out">${(+h.wet).toFixed(1)}</span></label>
       <label>ムラ<input type="range" id="un${i}" min="0.6" max="2" step="0.05" value="${h.unc}" data-k="unc"><span class="out">${(+h.unc).toFixed(2)}</span></label>
+      <label>斤量<select id="kg${i}" data-k="kg">${[52, 53, 54, 55, 56, 57, 58].map(k => `<option value="${k}" ${k === h.kg ? "selected" : ""}>${k}kg</option>`).join("")}</select><span></span></label>
+      <label>混合実績<select id="mx${i}" data-k="mixed">${MIXED.map((m, k) => `<option value="${k}" ${k === (h.mixed || 0) ? "selected" : ""}>${m.name}</option>`).join("")}</select><span></span></label>
+      <label>休み明け<select id="ly${i}" data-k="layoff">${LAYOFF.map((m, k) => `<option value="${k}" ${k === (h.layoff || 0) ? "selected" : ""}>${m.name}</option>`).join("")}</select><span></span></label>
       <label>脚質<select id="st${i}" data-k="style">${STYLES.map((s, k) => `<option value="${k}" ${k === h.style ? "selected" : ""}>${s}</option>`).join("")}</select><span></span></label>
       <label>出走<select id="ot${i}" data-k="out"><option value="0" ${h.out ? "" : "selected"}>出走</option><option value="1" ${h.out ? "selected" : ""}>取消</option></select><span></span></label>
     </div>
@@ -576,7 +599,7 @@ $("horseList").addEventListener("input", e => {
   const el = e.target, k = el.dataset.k; if (!k) return;
   const i = +el.closest("details").dataset.i; const h = field[i];
   if (k === "out") { h.out = el.value === "1"; el.closest("details").classList.toggle("scratched", h.out); picked = picked.filter(n => n !== h.no); tickets = tickets.filter(t => !t.horses.includes(h.no)); renderPicker(); }
-  else if (k === "style") { h.style = +el.value; el.closest("details").querySelector(".meta").textContent = `${h.info}・${h.jockey}・${STYLES[h.style]}`; }
+  else if (k === "style" || k === "kg" || k === "mixed" || k === "layoff") { h[k] = +el.value; el.closest("details").querySelector(".meta").textContent = `${h.info}・${h.kg}kg・${h.jockey}・${STYLES[h.style]}`; }
   else { h[k] = +el.value; el.nextElementSibling.textContent = k === "unc" ? h[k].toFixed(2) : h[k].toFixed(1); }
   lastMC = null; $("mcTbl").innerHTML = ""; renderTickets(); saveField();
 });
@@ -588,6 +611,7 @@ function seg(id, value, onChange) {
   set(value); box.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; set(b.dataset.v); onChange(b.dataset.v); });
 }
 seg("going", going, v => { going = +v; lastMC = null; $("mcTbl").innerHTML = ""; $("mcNote").textContent = "条件が変わりました。もう一度計算してください。"; renderTickets(); });
+seg("inner", MODEL_OPTS.inner, v => { MODEL_OPTS.inner = +v; lastMC = null; $("mcTbl").innerHTML = ""; $("mcNote").textContent = "条件が変わりました。もう一度計算してください。"; renderTickets(); });
 seg("weather", weather, v => { weather = +v; lastMC = null; $("mcTbl").innerHTML = ""; $("mcNote").textContent = "条件が変わりました。もう一度計算してください。"; renderTickets(); if (!race || race.done) draw(); });
 seg("pace", paceSetting, v => { paceSetting = v; lastMC = null; $("mcTbl").innerHTML = ""; $("mcNote").textContent = "条件が変わりました。もう一度計算してください。"; renderTickets(); });
 seg("speed", speed, v => { speed = +v; });
