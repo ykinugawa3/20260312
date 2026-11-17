@@ -197,6 +197,7 @@ details.horse summary .meta { font-size: .72rem; color: var(--muted); }
 const FRAME = { 1:["#ffffff","#111"],2:["#222222","#fff"],3:["#e60012","#fff"],4:["#1e5bc6","#fff"],5:["#f5d400","#111"],6:["#1a9b48","#fff"],7:["#f08300","#111"],8:["#f5a0c0","#111"] };
 const STYLES = ["逃げ","先行","差し","追込"];
 // 暫定データ: 2026/11/17 時点で有馬記念の候補に挙がっている10頭。番号は仮 (出走馬確定は12/24)
+// バステール: 利用者から出走予定の情報。ダービー3着・菊花賞ハナ差2着を反映して能力を上げ、情報不足扱い(ムラ大)を外した
 const DEFAULT_FIELD = [
   {no:1, name:"クロワデュノール", jockey:"未定", info:"牡4", style:1, rating:66.0, wet:0.0, unc:1.0, kg:58, mixed:0, layoff:0},
   {no:2, name:"ダノンデサイル", jockey:"戸崎(秋天)", info:"牡5", style:2, rating:66.2, wet:0.0, unc:1.0, kg:58, mixed:0, layoff:0},
@@ -207,7 +208,7 @@ const DEFAULT_FIELD = [
   {no:7, name:"ゴーイントゥスカイ", jockey:"武豊(菊花賞)", info:"牡3", style:2, rating:64.1, wet:0.0, unc:1.15, kg:56, mixed:0, layoff:0},
   {no:8, name:"ショウヘイ", jockey:"未定", info:"—", style:1, rating:63.3, wet:0.0, unc:1.3, kg:58, mixed:0, layoff:0},
   {no:9, name:"ネブラディスク", jockey:"未定", info:"—", style:1, rating:63.4, wet:0.0, unc:1.3, kg:58, mixed:0, layoff:0},
-  {no:10, name:"バステール", jockey:"未定", info:"牡3", style:2, rating:63.2, wet:0.0, unc:1.3, kg:56, mixed:0, layoff:0},
+  {no:10, name:"バステール", jockey:"川田(菊花賞)", info:"牡3", style:2, rating:64.0, wet:0.0, unc:1.1, kg:56, mixed:0, layoff:0},
 ];
 const frameOf = (no, n) => { // JRA方式: 外枠から順に多頭になる (18頭なら7・8枠が3頭)
   if (n <= 8) return no;
