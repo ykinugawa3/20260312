@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>マイルCS 2026 シミュレーター</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: 出馬表を中心にした「競馬新聞 × 中継画面」。左に開催カレンダー、右に本紙(出馬表/実況/結果/年間成績) */
+:root {
+  --bg: #e9efe8;
+  --surface: #fbfdfa;
+  --surface-2: #f1f5ef;
+  --ink: #14201a;
+  --muted: #5a6a60;
+  --line: #cfdacf;
+  --turf: #2c7a3d;
+  --g1: #1b4c9c;
+  --gold: #a87a1c;
+  --hit: #17804a;
+  --miss: #b2372e;
+  --chip: #dfe8de;
+  --f-display: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1511; --surface: #141f19; --surface-2: #1a2720; --ink: #e3ece5; --muted: #93a699;
+    --line: #29392f; --turf: #48a05b; --g1: #7ea6ef; --gold: #d9b05a; --hit: #4cc184; --miss: #ef7b70; --chip: #1f2e25;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1511; --surface: #141f19; --surface-2: #1a2720; --ink: #e3ece5; --muted: #93a699;
+  --line: #29392f; --turf: #48a05b; --g1: #7ea6ef; --gold: #d9b05a; --hit: #4cc184; --miss: #ef7b70; --chip: #1f2e25;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.55; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--g1); outline-offset: 2px; }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+
+.top { padding-block: 14px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--line); background: var(--surface); }
+.brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.brand .mark { font-family: var(--f-display); font-size: 26px; letter-spacing: .02em; color: var(--g1); line-height: 1; }
+.brand .sub { font-weight: 700; font-size: 15px; }
+.wallet { margin-left: auto; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.wallet .k { font-size: 11px; color: var(--muted); letter-spacing: .08em; display: block; }
+.wallet .v { font-family: var(--f-num); font-weight: 600; font-size: 18px; }
+.wallet .pl.pos { color: var(--hit); } .wallet .pl.neg { color: var(--miss); }
+
+.shell { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 0; min-height: calc(100vh - 70px); }
+.cal { border-right: 1px solid var(--line); background: var(--surface-2); padding-block: 12px; padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: 12px; }
+.cal h2 { font-size: 11px; letter-spacing: .12em; color: var(--muted); margin: 6px 4px 8px; font-weight: 700; }
+.cal-list { display: flex; flex-direction: column; gap: 2px; }
+.mon { font-size: 11px; color: var(--muted); margin: 10px 4px 2px; font-weight: 700; letter-spacing: .06em; }
+.rc { display: grid; grid-template-columns: 40px minmax(0,1fr); gap: 2px 8px; text-align: left; background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; }
+.rc:hover { background: var(--chip); }
+.rc[aria-current="true"] { background: var(--surface); border-color: var(--g1); }
+.rc .d { font-family: var(--f-num); font-size: 12px; color: var(--muted); grid-row: span 2; padding-top: 2px; }
+.rc .n { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc .w { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc.done .w { color: var(--gold); font-weight: 700; }
+.rc.next .w::before { content: "次走 "; color: var(--g1); font-weight: 700; }
+
+.main { min-width: 0; padding-block: 18px 40px; padding-left: max(16px, 2vw); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.racehead { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.g1badge { font-family: var(--f-display); background: var(--g1); color: #fff; font-size: 15px; padding: 4px 9px 3px; border-radius: 4px; line-height: 1.2; }
+.racehead h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(22px, 3.2vw, 32px); margin: 0; line-height: 1.2; text-wrap: balance; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 14px; }
+.tag { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 12px; white-space: nowrap; }
+.tag b { font-weight: 700; }
+.tag.cond-1 { background: #e7dfbf; color: #4a3d0c; } .tag.cond-2 { background: #d9c9a1; color: #3b2d06; } .tag.cond-3 { background: #b8a27a; color: #241900; }
+
+.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); margin-bottom: 16px; overflow-x: auto; }
+.tabs button { background: none; border: 0; padding: 8px 14px; font-weight: 700; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--g1); }
+.tabs button:disabled { opacity: .4; cursor: default; }
+
+.cardgrid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; vertical-align: middle; }
+th { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .06em; background: var(--surface-2); position: sticky; top: 0; }
+tr:last-child td { border-bottom: 0; }
+td.r, th.r { text-align: right; }
+.hn { font-weight: 700; font-size: 15px; }
+.hs { font-size: 11px; color: var(--muted); }
+.waku { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 4px; font-family: var(--f-num); font-weight: 600; font-size: 12px; border: 1px solid rgba(0,0,0,.35); }
+.mark-btn { width: 30px; height: 28px; border: 1px dashed var(--line); background: transparent; border-radius: 6px; font-size: 16px; font-weight: 700; color: var(--miss); }
+.style { font-size: 12px; padding: 1px 6px; border-radius: 4px; background: var(--chip); }
+.bar { display: inline-block; height: 6px; border-radius: 3px; background: var(--turf); vertical-align: middle; margin-right: 6px; }
+.odds { font-family: var(--f-num); font-weight: 600; }
+.odds.fav { color: var(--miss); }
+.pop { font-size: 11px; color: var(--muted); }
+.form-up { color: var(--hit); } .form-dn { color: var(--miss); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.panel h3 { margin: 0; font-size: 13px; letter-spacing: .08em; color: var(--muted); }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.seg button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 6px; padding: 4px 9px; font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--g1); border-color: var(--g1); color: #fff; }
+.picker { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.picker button { height: 36px; border-radius: 6px; border: 1px solid rgba(0,0,0,.3); font-family: var(--f-num); font-weight: 600; position: relative; }
+.picker button[data-ord]::after { content: attr(data-ord); position: absolute; top: -7px; right: -5px; background: var(--gold); color: #fff; font-size: 10px; border-radius: 999px; padding: 0 5px; line-height: 16px; }
+.picker button.sel { box-shadow: 0 0 0 3px var(--gold); }
+.pickinfo { font-size: 13px; min-height: 20px; }
+.amt { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.amt input { width: 90px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--ink); font-family: var(--f-num); text-align: right; }
+.amt button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 6px; padding: 5px 8px; font-size: 12px; }
+.btn { border: 0; border-radius: 8px; padding: 9px 14px; font-weight: 700; background: var(--chip); }
+.btn.primary { background: var(--g1); color: #fff; }
+.btn.go { background: var(--turf); color: #fff; font-size: 16px; padding: 12px 16px; font-family: var(--f-display); font-weight: 400; letter-spacing: .06em; }
+.btn:disabled { opacity: .45; cursor: default; }
+.slip { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.slip li { display: grid; grid-template-columns: 56px minmax(0,1fr) auto 24px; gap: 6px; align-items: center; background: var(--surface-2); border-radius: 6px; padding: 5px 8px; font-size: 13px; }
+.slip li .t { font-weight: 700; font-size: 12px; }
+.slip li .x { border: 0; background: none; color: var(--muted); font-size: 16px; padding: 0; }
+.slip-empty { color: var(--muted); font-size: 12px; }
+.msg { font-size: 12px; color: var(--miss); min-height: 16px; }
+.hint { font-size: 12px; color: var(--muted); }
+
+.racegrid { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 14px; }
+.stage { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #1d3a25; }
+canvas#track { display: block; width: 100%; height: clamp(260px, 46vw, 470px); }
+.controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.controls label { font-size: 12px; display: flex; gap: 4px; align-items: center; margin-left: auto; }
+.standings { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px; max-height: 520px; overflow-y: auto; }
+.standings ol { list-style: none; margin: 0; padding: 0; }
+.standings li { display: grid; grid-template-columns: 20px 24px minmax(0,1fr) auto; gap: 6px; align-items: center; font-size: 12px; padding: 3px 2px; border-bottom: 1px solid var(--line); }
+.standings li:last-child { border-bottom: 0; }
+.standings .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.standings .bet .nm { color: var(--gold); font-weight: 700; }
+.commentary { margin-top: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; max-height: 200px; overflow-y: auto; }
+.commentary ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.commentary li { font-size: 14px; }
+.commentary li:first-child { font-weight: 700; font-size: 15px; }
+.commentary .tm { font-family: var(--f-num); color: var(--muted); font-size: 12px; margin-right: 8px; }
+
+.result-top { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-bottom: 16px; }
+.podium { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.podium .p { font-family: var(--f-display); font-size: 22px; color: var(--gold); line-height: 1; }
+.podium:nth-child(2) .p { color: var(--muted); } .podium:nth-child(3) .p { color: #9a6a3c; }
+.podium .nm { font-weight: 700; font-size: 16px; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.two { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 16px; }
+.hit { color: var(--hit); font-weight: 700; } .miss { color: var(--miss); }
+.section-title { font-size: 13px; letter-spacing: .08em; color: var(--muted); margin: 0 0 8px; font-weight: 700; }
+
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.kpi .k { font-size: 11px; color: var(--muted); letter-spacing: .08em; }
+.kpi .v { font-family: var(--f-num); font-weight: 600; font-size: 22px; }
+.hoy { background: var(--surface); border: 2px solid var(--gold); border-radius: 12px; padding: 14px; margin-bottom: 16px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.hoy .lbl { font-family: var(--f-display); color: var(--gold); font-size: 15px; }
+.hoy .nm { font-family: var(--f-display); font-size: 22px; }
+.confirm { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.info { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.info dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; }
+.info dt { color: var(--muted); font-size: 12px; }
+.info dd { margin: 0; font-weight: 500; }
+.info a { color: var(--g1); }
+.info select { font: inherit; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.ref { color: var(--muted); font-size: 11px; }
+.foot { color: var(--muted); font-size: 11px; margin-top: 24px; max-width: 70ch; }
+
+@media (max-width: 1280px) {
+  .cardgrid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 1100px) {
+  .racegrid { grid-template-columns: minmax(0, 1fr); }
+  .standings { max-height: 260px; }
+}
+@media (max-width: 860px) {
+  .info dl { grid-template-columns: auto 1fr auto 1fr; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .cal { border-right: 0; border-bottom: 1px solid var(--line); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .cal-list { flex-direction: row; overflow-x: auto; gap: 6px; padding-bottom: 4px; }
+  .mon { display: none; }
+  .rc { min-width: 150px; background: var(--surface); border-color: var(--line); }
+  .main { padding-left: max(16px, env(safe-area-inset-left, 0px)); }
+  .two { grid-template-columns: minmax(0, 1fr); }
+  .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .result-top { grid-template-columns: minmax(0,1fr); }
+  .wallet { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark">G1 2026</span><span class="sub">マイルチャンピオンシップ レースシミュレーター</span></div>
+  <div class="wallet">
+    <div><span class="k">所持金</span><span class="v" id="bankroll">¥10,000</span></div>
+    <div><span class="k">収支</span><span class="v pl" id="pl">±0</span></div>
+  </div>
+</header>
+<div class="shell">
+  <aside class="cal">
+    <h2>レース情報</h2>
+    <div class="info" id="calendar"></div>
+  </aside>
+  <main class="main">
+    <div class="racehead"><span class="g1badge">G1</span><h1 id="raceName">—</h1></div>
+    <div class="meta" id="raceMeta"></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-card" data-tab="card" aria-selected="true">出馬表・馬券</button>
+      <button role="tab" id="tab-race" data-tab="race" aria-selected="false">レース実況</button>
+      <button role="tab" id="tab-result" data-tab="result" aria-selected="false">結果・払戻</button>
+      <button role="tab" id="tab-season" data-tab="season" aria-selected="false">1万回シミュ</button>
+    </div>
+
+    <section id="view-card">
+      <div class="cardgrid">
+        <div>
+          <div class="scroll"><table id="cardTable"></table></div>
+          <p class="hint">印(◎○▲△)はクリックで切り替え。勝率は馬場・展開・枠順・騎手を織り込んで 4,000 回走らせた結果。オッズは勝率から作った想定の人気です。</p>
+        </div>
+        <div class="panel" id="betPanel">
+          <h3>馬券を買う</h3>
+          <div class="seg" id="betTypes"></div>
+          <div class="picker" id="picker"></div>
+          <div class="pickinfo" id="pickInfo"></div>
+          <div class="amt">
+            <button id="amtDown" aria-label="100円減らす">−100</button>
+            <input id="amount" type="number" min="100" step="100" value="500" aria-label="購入金額">
+            <span>円</span>
+            <button id="amtUp" aria-label="100円増やす">+100</button>
+            <button data-q="1000">1,000</button><button data-q="3000">3,000</button>
+          </div>
+          <button class="btn primary" id="addBet">この馬券を買う</button>
+          <div class="msg" id="betMsg"></div>
+          <ul class="slip" id="slip"></ul>
+          <button class="btn go" id="goBtn">発走！</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-race" hidden>
+      <div class="racegrid">
+        <div>
+          <div class="stage"><canvas id="track" aria-label="レースの俯瞰アニメーション"></canvas></div>
+          <div class="controls">
+            <div class="seg" id="speedSeg"></div>
+            <button class="btn" id="skipBtn">結果までスキップ</button>
+            <label><input type="checkbox" id="speak"> 実況を読み上げる</label>
+          </div>
+          <div class="commentary"><ol id="comm"></ol></div>
+        </div>
+        <div class="standings"><ol id="standings"></ol></div>
+      </div>
+    </section>
+
+    <section id="view-result" hidden></section>
+    <section id="view-season" hidden></section>
+
+    <p class="foot">出走馬・枠順・騎手・斤量は2026年11月20日に確定した出馬表をもとにしています（一部の馬の年齢は未確認で「*」付き）。能力値・脚質・距離適性はシミュレーター用の独自の見立てで、実際の予想や結果を保証するものではありません。馬券はゲーム内の仮想のお金です。</p>
+  </main>
+</div>
+
+<script>
+"use strict";
+// ───────────────────────── 乱数 ─────────────────────────
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gauss(rng=Math.random){let u=0;while(u===0)u=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*rng());}
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ───────────────────────── レース定義 ─────────────────────────
+const GEO = {
+  tokyoT:{P:2083,L:526}, tokyoD:{P:1899,L:502}, nakayamaIn:{P:1667,L:310}, nakayamaOut:{P:1840,L:310},
+  kyotoOut:{P:1894,L:404}, kyotoIn:{P:1782,L:328}, hanshinOut:{P:2089,L:474}, hanshinIn:{P:1689,L:357},
+  chukyoT:{P:1705,L:413}, chukyoD:{P:1530,L:411}
+};
+const R=(id,name,date,course,surf,dist,dir,age,sex,size,prize,geo,note)=>({id,name,date,course,surf,dist,dir,age,sex,size,prize,geo,note});
+const RACES = [
+  R("milecs","マイルチャンピオンシップ","2026-11-22","京都","T",1600,"右","3+","any",18,1.8,"kyotoOut","外回り")
+];
+const RACE_BY_ID = Object.fromEntries(RACES.map(r=>[r.id,r]));
+const AGE_LABEL = {"2":"2歳","3":"3歳","3+":"3歳以上","4+":"4歳以上"};
+const COND = ["良","稍重","重","不良"];
+const dayNum = d => Math.round(Date.parse(d+"T00:00:00Z")/86400000);
+
+// ───────────────────────── 架空の馬と騎手 ─────────────────────────
+const PRE = ["アーク","シルバー","ブレイズ","ノーブル","ステラ","ルミナ","ヴェル","ゼファー","クラウン","オーロラ","サンダー","グラン","ミスティ","ロイヤル","ソニック","アストラ","セレス","フェザー","レガリア","ネオ","ハヤテ","ツバサ","カグラ","アカツキ","シラナミ","ホムラ","アオイ","スバル","イブキ","ミカヅキ","ヴァン","エル","リオ","ノア","カイ","ジン","ラン","ユメ","ソラ","ハル"];
+const SUF_M = ["ヴォルテクス","ドリーム","ブレイブ","ストーム","ハート","ノヴァ","ラプソディ","ルーセント","ファントム","エンブレム","カデンツァ","オラクル","ミラージュ","テンペスト","ソレイユ","フォルテ","バロン","ジェット","アロー","ライジン","マーチ","ゲイル","キング","ランス","ボルト","エース","タイタン","レグルス"];
+const SUF_F = ["ローズ","リリー","プリンセス","セレナーデ","ティアラ","マドンナ","アリア","ルナ","ミューズ","ベル","カメリア","フルール","ドレス","ヴィーナス","パール","シャルム","メロディ","クイーン","スカーレット","ポラリス","マリン","ブーケ"];
+const COATS = [["鹿毛",40],["黒鹿毛",20],["栗毛",20],["芦毛",10],["青鹿毛",7],["青毛",3]];
+const STYLES = ["逃げ","先行","差し","追込"];
+const JOCKEYS = [["北園 翔",1.6],["一ノ瀬 蓮",1.5],["M.アルヴェス",1.5],["榊 大和",1.3],["早乙女 律",1.2],["C.デュボワ",1.3],["鷲尾 健吾",1.1],["鳴海 陸",1.0],["朝霧 悠真",1.0],["久遠 拓海",0.9],["白瀬 隼",0.8],["真壁 誠司",0.8],["日向 葵",0.7],["氷室 透",0.7],["神楽坂 遼",0.6],["風間 颯",0.6],["藤堂 光",0.5],["雪村 匠",0.5],["深山 歩",0.4],["織田 湊",0.3]];
+
+function buildRoster(){
+  const rng = mulberry32(20260222);
+  const pick = a => a[Math.floor(rng()*a.length)];
+  const used = new Set();
+  const name = f => { for(let k=0;k<500;k++){ const n=pick(PRE)+pick(f?SUF_F:SUF_M); if(n.length>=4&&n.length<=9&&!used.has(n)){used.add(n);return n;} } return "ナナシ"+used.size; };
+  const coat = () => { let x=rng()*100; for(const [c,w] of COATS){ if((x-=w)<0) return c; } return "鹿毛"; };
+  const style = (w=[12,33,38,17]) => { let x=rng()*100; for(let i=0;i<4;i++){ if((x-=w[i])<0) return STYLES[i]; } return "差し"; };
+  const groups = [
+    {cat:"2c",n:24,age:[2,2],fem:0,   A:[99,112], best:[1400,2200],range:[380,560],surf:"T"},
+    {cat:"2f",n:22,age:[2,2],fem:1,   A:[98,110], best:[1400,2000],range:[350,520],surf:"T"},
+    {cat:"3c",n:30,age:[3,3],fem:0,   A:[104,116],best:[1400,3000],range:[380,620],surf:"T"},
+    {cat:"3f",n:26,age:[3,3],fem:1,   A:[102,113],best:[1400,2400],range:[360,560],surf:"T"},
+    {cat:"sp",n:14,age:[4,7],fem:.25, A:[107,118],best:[1150,1350],range:[200,260],surf:"T",sw:[18,50,25,7]},
+    {cat:"mi",n:14,age:[4,7],fem:.2,  A:[107,119],best:[1500,1800],range:[280,360],surf:"T"},
+    {cat:"md",n:16,age:[4,6],fem:.15, A:[108,121],best:[2000,2400],range:[420,560],surf:"T"},
+    {cat:"st",n:11,age:[4,7],fem:.05, A:[107,118],best:[2600,3200],range:[560,700],surf:"T"},
+    {cat:"of",n:18,age:[4,6],fem:1,   A:[105,116],best:[1400,2400],range:[350,520],surf:"T"},
+    {cat:"dt",n:20,age:[4,7],fem:.1,  A:[106,119],best:[1400,2000],range:[340,500],surf:"D"},
+    {cat:"3d",n:4, age:[3,3],fem:0,   A:[106,113],best:[1600,1900],range:[340,460],surf:"D"}
+  ];
+  const H=[]; let id=0;
+  for(const g of groups){
+    for(let i=0;i<g.n;i++){
+      const fem = rng()<g.fem;
+      const age = g.age[0]+Math.floor(rng()*(g.age[1]-g.age[0]+1));
+      const A = g.A[0]+(g.A[1]-g.A[0])*Math.pow(rng(),1.7);
+      const best = Math.round((g.best[0]+(g.best[1]-g.best[0])*rng())/100)*100;
+      const range = g.range[0]+(g.range[1]-g.range[0])*rng();
+      let turf=0, dirt=0;
+      if(g.surf==="T"){ dirt = rng()<.15 ? -(1+rng()*2.5) : -(5+rng()*8); } else { turf = -(6+rng()*8); }
+      const sex = fem ? "牝" : (age>=5 && rng()<.18 ? "セ" : "牡");
+      H.push({id:id++, name:name(fem), cat:g.cat, sex, age, A:+A.toFixed(1), best, range:Math.round(range), turf:+turf.toFixed(1), dirt:+dirt.toFixed(1),
+        wet:+clamp(gauss(rng)*.6,-1,1).toFixed(2), style:style(g.sw), coat:coat(), grow:+(0.25+rng()*.4).toFixed(2)});
+    }
+  }
+  return H;
+}
+
+// 2026/11/20 確定の出馬表。能力値(A)・脚質・適距離はシミュレーター独自の見立て
+const REAL = [
+  [1,"エルデナリ","セ",3,1,57,"M.バルザローナ",1.2,112.6,1600,330,"差し",.1,"鹿毛",null,"フランス調教馬（F.グラファール厩舎）"],
+  [2,"エンブロイダリー","牝",4,1,56,"C.ルメール",1.6,118.0,1600,380,"先行",.1,"鹿毛",3.7,"G1・3勝。4つ目のG1を狙う"],
+  [3,"ドラゴンブースト","牡",4,0,58,"浜中 俊",0.9,108.0,1600,320,"逃げ",.2,"鹿毛",109.5,""],
+  [4,"シックスペンス","牡",5,0,58,"A.プーシャン",1.0,114.6,1700,360,"先行",-.1,"鹿毛",10.2,"春の安田記念を制覇"],
+  [5,"アドマイヤズーム","牡",4,0,58,"武 豊",1.2,113.8,1600,330,"先行",0,"鹿毛",12.5,"G1馬"],
+  [6,"ピコローズ","牝",4,1,56,"三浦 皇成",0.8,109.6,1600,320,"先行",0,"鹿毛",40.6,""],
+  [7,"ココナッツブラウン","牝",6,1,56,"北村 友一",0.9,110.2,1800,380,"差し",.2,"鹿毛",27.0,"今年のクイーンSで重賞制覇"],
+  [8,"ロデオドライブ","牡",3,1,57,"J.モレイラ",1.6,116.4,1600,350,"差し",0,"鹿毛",5.9,"NHKマイルC覇者"],
+  [9,"ジューンテイク","牡",5,1,58,"川田 将雅",1.5,111.6,1700,360,"先行",.1,"鹿毛",null,""],
+  [10,"ウォーターリヒト","牡",5,1,58,"幸 英明",0.8,111.2,1600,330,"追込",.1,"鹿毛",null,""],
+  [11,"ガイアフォース","牡",7,1,58,"西村 淳也",1.0,114.4,1700,380,"先行",-.1,"芦毛",9.4,"安田記念2着"],
+  [12,"ワールズエンド","牡",5,0,58,"C.デムーロ",1.2,111.8,1700,360,"差し",0,"鹿毛",null,""],
+  [13,"レザベーション","牡",3,1,57,"田口 貫太",0.7,110.6,1600,330,"逃げ",0,"鹿毛",null,""],
+  [14,"スターアニス","牝",3,1,55,"松山 弘平",1.1,116.0,1600,330,"差し",0,"鹿毛",6.9,"G1馬（3歳牝馬・55kg）"],
+  [15,"エコロブルーム","牡",5,1,58,"坂井 瑠星",1.2,111.2,1600,320,"先行",0,"鹿毛",null,""],
+  [16,"スズハローム","牡",6,1,58,"藤懸 貴志",0.5,108.6,1400,300,"追込",.2,"鹿毛",null,""],
+  [17,"アンパドゥ","牡",5,1,58,"岩田 望来",1.1,111.8,1600,330,"差し",0,"鹿毛",null,"富士S2着"],
+  [18,"オフトレイル","牡",5,1,58,"菅原 明良",0.8,111.4,1600,330,"追込",.1,"鹿毛",null,""]
+].map(([num,name,sex,age,ageSure,weight,jockey,js,A,best,range,style,wet,coat,ref,note],id)=>
+  ({id,num,name,sex,age,ageSure,weight,jockey,js,A,best,range,style,wet,coat,ref,note,turf:0,dirt:-8,grow:0}));
+const HORSES = REAL;
+
+// ───────────────────────── 能力の評価 ─────────────────────────
+const SIGMA = 4.6, P_LATE = .03, P_BLOCK = .03;
+const PACE_C = {"逃げ":-2.0,"先行":-1.0,"差し":1.0,"追込":2.0};
+function eligible(h,r){
+  if(r.age==="2" && h.age!==2) return false;
+  if(r.age==="3" && h.age!==3) return false;
+  if(r.age==="3+" && h.age<3) return false;
+  if(r.age==="4+" && h.age<4) return false;
+  if(r.sex==="f" && h.sex!=="牝") return false;
+  return true;
+}
+function abilityAt(h,month){
+  if(h.age===3) return h.A + (month>=4 ? h.grow*(month-4) : -(4-month)*.5);
+  if(h.age>=7) return h.A - .1*month;
+  return h.A;
+}
+function coreScore(h,r,cond){
+  let s = h.A;
+  s -= Math.min(25, 6*Math.pow((r.dist-h.best)/h.range,2));
+  s += cond*h.wet*1.4;
+  return s;
+}
+function kinryo(h,r){
+  const f = h.sex==="牝";
+  if(r.age==="2") return (r.sex==="f"||!f) ? 55 : 54;
+  if(r.age==="3") return r.sex==="f" ? 55 : (f?55:57);
+  if(h.age===3){ const m=+r.date.slice(5,7); const base = m>=9?56:54; return r.sex==="f"?54:(f?base-2:base); }
+  return r.sex==="f" ? 56 : (f?56:58);
+}
+const WAKU_COLORS = [["#ffffff","#111"],["#1f1f1f","#fff"],["#d7261e","#fff"],["#1e5bc6","#fff"],["#f2cc0c","#111"],["#1f9a3a","#fff"],["#f08a1c","#111"],["#f28db3","#111"]];
+function frameCounts(n){ if(n<=8) return Array.from({length:n},()=>1); const c=Array(8).fill(1); for(let k=0;k<n-8;k++) c[7-(k%8)]++; return c; }
+
+// ───────────────────────── 状態 ─────────────────────────
+const KEY="milecs2026.v1";
+function freshState(){ return {cond:0, history:[], bankroll:10000, topups:0, cards:{}, bets:{}, results:{}, stats:{}, log:[]}; }
+let S; try { S = JSON.parse(localStorage.getItem(KEY)) || freshState(); } catch(e){ S = freshState(); }
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+let cur = { race: null, tab: "card", betType: "tan", picks: [] };
+
+// ───────────────────────── 出馬表をつくる ─────────────────────────
+function busyNear(hid, race){
+  // 間隔は2週以上 (2歳は1週)、G1出走は年7戦まで
+  const d = dayNum(race.date), gap = HORSES[hid].age===2 ? 7 : 14; let runs = 0;
+  for(const [rid,c] of Object.entries(S.cards)){
+    if(rid===race.id || !c.entries.some(e=>e.hid===hid)) continue;
+    runs++;
+    if(Math.abs(dayNum(RACE_BY_ID[rid].date)-d) < gap) return true;
+  }
+  return runs >= 7;
+}
+function earningsOf(hid){ return (S.stats[hid]||{}).earn||0; }
+function makeCard(r){
+  const cond = S.cond||0;
+  const weather = cond===0 ? "晴" : cond===1 ? "曇" : "雨";
+  const n = HORSES.length, fc = frameCounts(n); const wakus=[]; fc.forEach((c,f)=>{ for(let k=0;k<c;k++) wakus.push(f+1); });
+  const entries = HORSES.map((h,i)=>{
+    const gate = (1-i/(n-1))*.9; // 京都外回り1600は内枠がやや有利
+    const base = coreScore(h,r,cond) + h.js + gate;
+    return {hid:h.id, num:h.num, waku:wakus[i], jockey:h.jockey, form:0, weight:h.weight, base:+base.toFixed(2), pc:PACE_C[h.style]};
+  });
+  const card = {cond, weather, entries, marks:{}};
+  priceCard(card);
+  return card;
+}
+function samplePace(entries, rnd=Math.random){
+  let nige=0, sen=0; entries.forEach(e=>{ const st=HORSES[e.hid].style; if(st==="逃げ") nige++; else if(st==="先行") sen++; });
+  return clamp((nige-1.5)*.35 + (sen-5)*.05 + gauss(rnd)*.5, -1.6, 1.6);
+}
+function priceCard(card){
+  const n = card.entries.length, N = 4000;
+  const win = new Float64Array(n), top3 = new Float64Array(n), sc = new Float64Array(n);
+  for(let k=0;k<N;k++){
+    const pace = samplePace(card.entries);
+    for(let i=0;i<n;i++){
+      const e = card.entries[i];
+      let s = e.base + e.pc*pace + gauss()*SIGMA;
+      if(Math.random()<P_LATE) s -= 4; else if(Math.random()<P_BLOCK) s -= 3;
+      sc[i]=s;
+    }
+    let a=-1,b=-1,c=-1;
+    for(let i=0;i<n;i++){ const s=sc[i];
+      if(a<0||s>sc[a]){c=b;b=a;a=i;} else if(b<0||s>sc[b]){c=b;b=i;} else if(c<0||s>sc[c]){c=i;} }
+    win[a]++; top3[a]++; top3[b]++; top3[c]++;
+  }
+  const p = Array.from(win, w=>(w+.5)/(N+n*.5));
+  const pw = p.map(x=>Math.pow(x,.9)); const sum = pw.reduce((a,b)=>a+b,0);
+  const q = pw.map(x=>x/sum);
+  card.p = p.map(x=>+x.toFixed(4));
+  card.p3 = Array.from(top3, t=>+(t/N).toFixed(4));
+  card.q = q.map(x=>+x.toFixed(5));
+  card.odds = q.map(x=>Math.max(1.1, Math.floor(0.8/x*10)/10));
+  const sorted = card.odds.map((o,i)=>[o,i]).sort((a,b)=>a[0]-b[0]);
+  card.pop = []; sorted.forEach(([o,i],k)=>{ card.pop[i]=k+1; });
+}
+function ensureCard(r){ if(!S.cards[r.id]){ S.cards[r.id] = makeCard(r); save(); } return S.cards[r.id]; }
+
+// ───────────────────────── 払戻 (Harville モデル) ─────────────────────────
+function P2o(q,i,j){ return q[i]*q[j]/(1-q[i]); }
+function P3o(q,i,j,k){ return q[i]*q[j]/(1-q[i])*q[k]/(1-q[i]-q[j]); }
+function pBothTop3(q,i,j){
+  let s = P2o(q,i,j)+P2o(q,j,i);
+  for(let k=0;k<q.length;k++){ if(k===i||k===j) continue;
+    s += P3o(q,i,k,j)+P3o(q,j,k,i)+P3o(q,k,i,j)+P3o(q,k,j,i); }
+  return s;
+}
+function pTop3(q,i){
+  let s=q[i]; const n=q.length;
+  for(let j=0;j<n;j++){ if(j===i) continue; s+=P2o(q,j,i);
+    for(let k=0;k<n;k++){ if(k===i||k===j) continue; s+=P3o(q,j,k,i); } }
+  return s;
+}
+const BET_TYPES = [
+  {id:"tan", label:"単勝", n:1, ord:true}, {id:"fuku", label:"複勝", n:1, ord:true},
+  {id:"umaren", label:"馬連", n:2, ord:false}, {id:"wide", label:"ワイド", n:2, ord:false},
+  {id:"umatan", label:"馬単", n:2, ord:true}, {id:"sanfuku", label:"3連複", n:3, ord:false},
+  {id:"santan", label:"3連単", n:3, ord:true}
+];
+const BT = Object.fromEntries(BET_TYPES.map(b=>[b.id,b]));
+function estOdds(card, type, sel){
+  const q = card.q, ix = sel.map(n=>n-1); let p, take;
+  switch(type){
+    case "tan": return card.odds[ix[0]];
+    case "fuku": p = pTop3(q,ix[0]); take=.8; break;
+    case "umaren": p = P2o(q,ix[0],ix[1])+P2o(q,ix[1],ix[0]); take=.775; break;
+    case "wide": p = pBothTop3(q,ix[0],ix[1]); take=.775; break;
+    case "umatan": p = P2o(q,ix[0],ix[1]); take=.75; break;
+    case "sanfuku": { const [a,b,c]=ix; p=P3o(q,a,b,c)+P3o(q,a,c,b)+P3o(q,b,a,c)+P3o(q,b,c,a)+P3o(q,c,a,b)+P3o(q,c,b,a); take=.75; break; }
+    case "santan": p = P3o(q,ix[0],ix[1],ix[2]); take=.725; break;
+  }
+  return Math.max(1.1, Math.floor(take/p*10)/10);
+}
+const payOf = odds => Math.floor(odds*100/10)*10;
+function betHits(type, sel, fin){ // fin = [1着馬番, 2着, 3着]
+  const top3 = fin.slice(0,3), set=(a)=>[...a].sort((x,y)=>x-y).join("-");
+  switch(type){
+    case "tan": return sel[0]===fin[0];
+    case "fuku": return top3.includes(sel[0]);
+    case "umaren": return set(sel)===set(fin.slice(0,2));
+    case "wide": return top3.includes(sel[0]) && top3.includes(sel[1]);
+    case "umatan": return sel[0]===fin[0] && sel[1]===fin[1];
+    case "sanfuku": return set(sel)===set(top3);
+    case "santan": return sel.join("-")===top3.join("-");
+  }
+}
+const selText = (type, sel) => sel.join(BT[type].ord ? " → " : " - ");
+
+// ───────────────────────── レースを走らせる ─────────────────────────
+const SEC100 = {T:[[1200,5.67],[1600,5.78],[2000,5.92],[2200,5.98],[2400,6.0],[2500,6.06],[3000,6.08],[3200,6.12]], D:[[1600,5.98],[1800,6.17]]};
+function secPer100(surf, d){ const t=SEC100[surf]; if(d<=t[0][0]) return t[0][1]; for(let i=1;i<t.length;i++){ if(d<=t[i][0]){ const [d0,s0]=t[i-1],[d1,s1]=t[i]; return s0+(s1-s0)*(d-d0)/(d1-d0);} } return t[t.length-1][1]; }
+const EARLY = {"逃げ":9,"先行":4,"差し":-3,"追込":-9};
+const TRANS = {"逃げ":.7,"先行":.66,"差し":.6,"追込":.57};
+const PACE_K = .025;
+function simulateOutcome(r, card){
+  const n = card.entries.length;
+  const pace = samplePace(card.entries);
+  const events = [];
+  const scores = card.entries.map((e,i)=>{
+    let s = e.base + e.pc*pace + gauss()*SIGMA;
+    if(Math.random()<P_LATE){ s-=4; events.push({t:"late",i}); }
+    else if(Math.random()<P_BLOCK){ s-=3; events.push({t:"block",i,x:+(.5+Math.random()*.25).toFixed(2)}); }
+    return s;
+  });
+  const order = scores.map((s,i)=>[s,i]).sort((a,b)=>b[0]-a[0]).map(x=>x[1]);
+  const condAdj = r.surf==="T" ? [0,.006,.012,.02][card.cond] : [0,-.004,-.007,-.005][card.cond];
+  let T1 = r.dist*secPer100(r.surf,r.dist)/100 * (1+condAdj) * (1 - pace*.004) * (1 - (scores[order[0]]-118)*.0012) * (1+gauss()*.003);
+  if(r.age==="2") T1 *= 1.008;
+  const v = r.dist/T1, vEnd = v*(1-pace*PACE_K);
+  const T = new Array(n); let t = T1, prev = scores[order[0]];
+  order.forEach((i,k)=>{ if(k>0){ t += Math.max(.005,(prev-scores[i])*.07); } prev = scores[i]; T[i]=+t.toFixed(3); });
+  const early = card.entries.map((e,i)=>{ const h=HORSES[e.hid]; let g = (EARLY[h.style]+gauss()*2)*(1+.3*pace); if(events.some(ev=>ev.t==="late"&&ev.i===i)) g-=6; return +g.toFixed(2); });
+  const wob = card.entries.map(()=>[+(Math.random()*6.28).toFixed(2), +(1.5+Math.random()*2).toFixed(2)]);
+  const out = {pace:+pace.toFixed(2), T1:+T1.toFixed(3), v, vEnd, T, early, wob, events, order, scores:scores.map(s=>+s.toFixed(2))};
+  out.l3f = card.entries.map((e,i)=>+lastNF(out, r, card, i, 600).toFixed(1));
+  out.split1000 = r.dist>=1600 ? passTime(out, r, card, 1000) : null;
+  return out;
+}
+// 各馬の位置 (m) — 基準走行距離 + 脚質ごとのオフセット
+function refDist(o, D, t){
+  if(t<=o.T1) return o.v*t + o.pace*PACE_K*D*Math.sin(Math.PI*t/o.T1)/Math.PI;
+  return D + o.vEnd*(t-o.T1);
+}
+function horseDist(o, r, card, i, t){
+  const D = r.dist, dr = refDist(o,D,t), x = clamp(dr/D,0,1);
+  const st = HORSES[card.entries[i].hid].style;
+  const ramp = sstep(0,.12,x), s = Math.pow(sstep(TRANS[st],1,x),1.25);
+  const fin = -(o.T[i]-o.T1)*o.vEnd;
+  const w = Math.sin(6.283*x*o.wob[i][1]+o.wob[i][0])*1.1;
+  return Math.max(0, dr + (o.early[i]+w)*ramp*(1-s) + fin*s);
+}
+function timeAt(o,r,card,i,target){ let lo=0, hi=o.T[i]+1; for(let k=0;k<40;k++){ const m=(lo+hi)/2; if(horseDist(o,r,card,i,m)>=target) hi=m; else lo=m; } return hi; }
+function lastNF(o,r,card,i,m){ return o.T[i] - timeAt(o,r,card,i,r.dist-m); }
+function passTime(o,r,card,target){ let lo=0, hi=o.T1; for(let k=0;k<40;k++){ const m=(lo+hi)/2; let mx=0; for(let i=0;i<card.entries.length;i++) mx=Math.max(mx,horseDist(o,r,card,i,m)); if(mx>=target) hi=m; else lo=m; } return +hi.toFixed(1); }
+
+function fmtTime(t){ const m=Math.floor(t/60), s=t-m*60; return m>0 ? `${m}:${s.toFixed(1).padStart(4,"0")}` : s.toFixed(1); }
+function marginText(dt, v){
+  const b = dt*v/2.4;
+  if(b<.05) return "ハナ"; if(b<.15) return "アタマ"; if(b<.3) return "クビ"; if(b<.6) return "1/2"; if(b<.85) return "3/4";
+  if(b<1.1) return "1"; if(b<1.35) return "1 1/4"; if(b<1.6) return "1 1/2"; if(b<1.85) return "1 3/4"; if(b<2.25) return "2";
+  if(b<2.75) return "2 1/2"; if(b<3.5) return "3"; if(b<4.5) return "4"; if(b<5.5) return "5"; if(b<7) return "6"; if(b<9) return "8"; if(b<10) return "9"; return "大差";
+}
+function paceLabel(p){ return p<-.4?"スローペース":p>.4?"ハイペース":"平均ペース"; }
+
+function finalizeRace(r){
+  const card = ensureCard(r);
+  const o = simulateOutcome(r, card);
+  const fin = o.order.map(i=>card.entries[i].num);
+  // 払戻表
+  const q = card.q, top3 = fin.slice(0,3);
+  const pays = {
+    tan:[{sel:[fin[0]], pay:payOf(estOdds(card,"tan",[fin[0]]))}],
+    fuku: top3.map(n=>({sel:[n], pay:payOf(estOdds(card,"fuku",[n]))})),
+    umaren:[{sel:fin.slice(0,2), pay:payOf(estOdds(card,"umaren",fin.slice(0,2)))}],
+    wide:[[0,1],[0,2],[1,2]].map(([a,b])=>({sel:[top3[a],top3[b]], pay:payOf(estOdds(card,"wide",[top3[a],top3[b]]))})),
+    umatan:[{sel:fin.slice(0,2), pay:payOf(estOdds(card,"umatan",fin.slice(0,2)))}],
+    sanfuku:[{sel:top3, pay:payOf(estOdds(card,"sanfuku",top3))}],
+    santan:[{sel:top3, pay:payOf(estOdds(card,"santan",top3))}]
+  };
+  // 馬券の精算
+  const bets = S.bets[r.id] || []; let stake=0, ret=0;
+  const settled = bets.map(b=>{
+    stake += b.amount;
+    let back = 0;
+    if(betHits(b.type,b.sel,fin)){
+      const list = pays[b.type];
+      const hit = list.find(p=> b.type==="wide"||b.type==="umaren"||b.type==="sanfuku" ? [...p.sel].sort().join()===[...b.sel].sort().join() : p.sel.join()===b.sel.join());
+      back = hit ? hit.pay*b.amount/100 : 0;
+    }
+    ret += back; return {...b, back};
+  });
+  S.bankroll += ret;
+  if(bets.length) S.log.push({race:r.id, stake, ret});
+  // 成績
+  const prize = r.prize*10000; // 万円
+  const share = [1,.4,.25,.15,.1];
+  o.order.forEach((i,k)=>{
+    const hid = card.entries[i].hid; const st = S.stats[hid] || (S.stats[hid]={starts:0,wins:0,top3:0,earn:0,g1:[]});
+    st.starts++; if(k===0){ st.wins++; st.g1.push(r.id); } if(k<3) st.top3++; st.earn += (share[k]||0)*prize;
+  });
+  S.results[r.id] = {o, fin, pays, settled, stake, ret};
+  S.history.push({w:HORSES[card.entries[o.order[0]].hid].name});
+  save();
+  return S.results[r.id];
+}
+
+// ───────────────────────── 画面 ─────────────────────────
+const $ = (s,el=document)=>el.querySelector(s);
+const wakuStyle = w => `background:${WAKU_COLORS[w-1][0]};color:${WAKU_COLORS[w-1][1]}`;
+function nextRaceId(){ const r = RACES.find(r=>!S.results[r.id]); return r ? r.id : null; }
+function totalPL(){ return S.log.reduce((a,l)=>a+l.ret-l.stake,0); }
+
+function renderWallet(){
+  $("#bankroll").textContent = yen(S.bankroll);
+  const pl = totalPL(); const el=$("#pl");
+  el.textContent = (pl>0?"+":pl<0?"−":"±")+Math.abs(Math.round(pl)).toLocaleString("ja-JP");
+  el.className = "v pl "+(pl>0?"pos":pl<0?"neg":"");
+}
+function renderCalendar(){
+  const res = S.results.milecs, c = S.cards.milecs;
+  const lastW = res ? HORSES[c.entries[res.o.order[0]].hid].name : "—";
+  const wins = {}; S.history.forEach(h=>{ wins[h.w]=(wins[h.w]||0)+1; });
+  const top = Object.entries(wins).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  $("#calendar").innerHTML = `<dl>
+      <dt>開催</dt><dd>2026年11月22日（日）京都11R</dd>
+      <dt>回次</dt><dd>第43回 G1</dd>
+      <dt>コース</dt><dd>芝1600m 右・外回り</dd>
+      <dt>条件</dt><dd>3歳以上 定量 18頭</dd>
+      <dt>馬場</dt><dd><select id="condSel" aria-label="馬場状態">${COND.map((x,i)=>`<option value="${i}" ${i===(S.cond||0)?"selected":""}>${x}</option>`).join("")}</select></dd>
+      <dt>前回の1着</dt><dd>${esc(lastW)}</dd>
+    </dl>
+    <div><p class="ref" style="margin:0 0 4px">あなたが走らせた ${S.history.length} 回の勝ち馬</p>${top.length?top.map(([w,k])=>`<div>${esc(w)} <span class="num ref">${k}勝</span></div>`).join(""):'<div class="ref">まだありません</div>'}</div>
+    <p class="ref" style="margin:0">馬場を変えると勝率とオッズを計算し直します（買った馬券は払い戻し）。</p>`;
+}
+function renderHead(){
+  const r = RACE_BY_ID[cur.race], c = ensureCard(r);
+  $("#raceName").textContent = r.name;
+  const dt = new Date(r.date+"T00:00:00"); const wd = "日月火水木金土"[dt.getDay()];
+  $("#raceMeta").innerHTML = [
+    `<span class="tag"><b>${+r.date.slice(5,7)}月${+r.date.slice(8)}日(${wd})</b></span>`,
+    `<span class="tag">${r.course} ${r.surf==="T"?"芝":"ダート"}<b>${r.dist}m</b> ${r.dir}回り${r.note?" "+r.note:""}</span>`,
+    `<span class="tag">${AGE_LABEL[r.age]}${r.sex==="f"?" 牝馬限定":""}</span>`,
+    `<span class="tag">${c.entries.length}頭</span>`,
+    `<span class="tag">天候 <b>${c.weather}</b></span>`,
+    `<span class="tag cond-${c.cond}">馬場 <b>${COND[c.cond]}</b></span>`,
+    `<span class="tag">発走 15:40</span>`
+  ].join("");
+}
+function setTab(tab){
+  cur.tab = tab;
+  const done = !!S.results[cur.race];
+  for(const b of document.querySelectorAll(".tabs button")){
+    b.setAttribute("aria-selected", b.dataset.tab===tab);
+    if(b.dataset.tab==="result") b.disabled = !done;
+  }
+  for(const v of ["card","race","result","season"]) $("#view-"+v).hidden = v!==tab;
+  if(tab==="card") renderCard();
+  if(tab==="result") renderResult();
+  if(tab==="season") renderSeason();
+  if(tab==="race") { resizeCanvas(); if(!anim) drawIdle(); }
+}
+function selectRace(id){
+  stopAnim();
+  cur.race = id; cur.picks = [];
+  ensureCard(RACE_BY_ID[id]);
+  renderCalendar(); renderHead();
+  setTab(S.results[id] ? "result" : (cur.tab==="season"?"season":"card"));
+}
+
+function renderCard(){
+  const r = RACE_BY_ID[cur.race], c = ensureCard(r), done = !!S.results[r.id];
+  const maxP = Math.max(...c.p);
+  const formTxt = f => f>=2?'<span class="form-up">↑ 絶好</span>':f===1?'<span class="form-up">↗ 好調</span>':f===0?"→ 平行":f===-1?'<span class="form-dn">↘ 下降</span>':'<span class="form-dn">↓ 不安</span>';
+  let html = `<thead><tr><th>枠</th><th>馬番</th><th>印</th><th>馬名</th><th class="r">単勝</th><th>勝率</th><th>騎手 / 斤量</th><th>脚質</th><th class="r">適距離</th><th>調子</th><th class="r">指数</th></tr></thead><tbody>`;
+  for(let i=0;i<c.entries.length;i++){
+    const e=c.entries[i], h=HORSES[e.hid], st=S.stats[h.id];
+    const rec = h.note || "";
+    const idx = Math.round(50+(e.base-100)*2.2);
+    html += `<tr><td><span class="waku" style="${wakuStyle(e.waku)}">${e.waku}</span></td><td class="num">${e.num}</td>
+      <td><button class="mark-btn" data-mark="${e.num}" aria-label="${e.num}番の印" ${done?"disabled":""}>${c.marks[e.num]||""}</button></td>
+      <td><div class="hn">${esc(h.name)}</div><div class="hs">${h.sex}${h.age}${h.ageSure?"":"*"}${rec?" ・ "+esc(rec):""}</div></td>
+      <td class="r"><span class="odds ${c.pop[i]===1?"fav":""}">${c.odds[i].toFixed(1)}</span> <span class="pop">${c.pop[i]}人気</span></td>
+      <td class="num"><span class="bar" style="width:${Math.max(2,Math.round(c.p[i]/maxP*60))}px"></span>${(c.p[i]*100).toFixed(1)}%</td>
+      <td>${esc(e.jockey)}<div class="hs num">${e.weight}.0kg</div></td>
+      <td><span class="style">${h.style}</span></td>
+      <td class="r num">${h.best}m</td>
+      <td>${formTxt(e.form)}</td>
+      <td class="r num">${idx}</td>
+      </tr>`;
+  }
+  $("#cardTable").innerHTML = html+"</tbody>";
+  renderBetPanel();
+}
+function renderBetPanel(){
+  const r = RACE_BY_ID[cur.race], c = ensureCard(r), done = !!S.results[r.id];
+  const bt = BT[cur.betType];
+  $("#betTypes").innerHTML = BET_TYPES.map(b=>`<button data-bt="${b.id}" aria-pressed="${b.id===cur.betType}" ${done?"disabled":""}>${b.label}</button>`).join("");
+  $("#picker").innerHTML = c.entries.map(e=>{
+    const k = cur.picks.indexOf(e.num);
+    const ord = k>=0 ? (bt.ord && bt.n>1 ? `data-ord="${k+1}着"` : "") : "";
+    return `<button data-pick="${e.num}" class="${k>=0?"sel":""}" ${ord} style="${wakuStyle(e.waku)}" ${done?"disabled":""} aria-pressed="${k>=0}">${e.num}</button>`;
+  }).join("");
+  let info = `${bt.label}: ${bt.n}頭を選んでください${bt.ord&&bt.n>1?"（クリック順＝着順）":""}`;
+  if(cur.picks.length===bt.n){ info = `<b>${bt.label} ${selText(cur.betType,cur.picks)}</b>　想定オッズ <b class="num">${estOdds(c,cur.betType,cur.picks).toFixed(1)}</b> 倍`; }
+  $("#pickInfo").innerHTML = info;
+  const bets = S.bets[r.id]||[];
+  $("#slip").innerHTML = bets.length ? bets.map((b,k)=>`<li><span class="t">${BT[b.type].label}</span><span class="num">${selText(b.type,b.sel)}<span class="hs"> ×${b.odds.toFixed(1)}</span></span><span class="num">${yen(b.amount)}</span><button class="x" data-del="${k}" aria-label="取り消す" ${done?"disabled":""}>×</button></li>`).join("")
+    + `<li style="background:none"><span class="t">合計</span><span></span><span class="num"><b>${yen(bets.reduce((a,b)=>a+b.amount,0))}</b></span><span></span></li>`
+    : `<li class="slip-empty" style="display:block;background:none">まだ馬券はありません。買わずに観戦だけでもOK。</li>`;
+  $("#addBet").disabled = done;
+  $("#goBtn").disabled = false;
+  $("#goBtn").textContent = done ? "レースを再生" : "発走！";
+}
+
+function addBet(){
+  const r = RACE_BY_ID[cur.race], c = ensureCard(r), bt = BT[cur.betType], msg=$("#betMsg");
+  msg.textContent = "";
+  if(cur.picks.length!==bt.n){ msg.textContent = `${bt.label}は${bt.n}頭を選んでください。`; return; }
+  const amt = Math.floor((+$("#amount").value||0)/100)*100;
+  if(amt<100){ msg.textContent = "金額は100円単位で入力してください。"; return; }
+  if(amt>S.bankroll){ msg.textContent = `所持金が足りません（残り ${yen(S.bankroll)}）。`; return; }
+  const sel = bt.ord ? [...cur.picks] : [...cur.picks].sort((a,b)=>a-b);
+  (S.bets[r.id] ||= []).push({type:cur.betType, sel, amount:amt, odds:estOdds(c,cur.betType,sel)});
+  S.bankroll -= amt; cur.picks = []; save(); renderWallet(); renderBetPanel();
+}
+
+// ───────────────────────── 実況アニメーション ─────────────────────────
+let anim = null, speed = 3;
+const cvs = $("#track"), ctx = cvs.getContext("2d");
+function resizeCanvas(){ const dpr = Math.min(2, window.devicePixelRatio||1); const w = cvs.clientWidth, h = cvs.clientHeight; if(w&&h){ cvs.width = Math.round(w*dpr); cvs.height = Math.round(h*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); } }
+window.addEventListener("resize", ()=>{ if(cur.tab==="race"){ resizeCanvas(); if(!anim) drawIdle(); } });
+
+function geom(r){ const g = GEO[r.geo]; const Ls = g.L+60; return {P:g.P, Ls, L:g.L, rad:(g.P-2*Ls)/(2*Math.PI), sF:g.P-60, mirror: r.dir==="右"}; }
+// 周回コースの座標 (反時計回り、ゴールは下側直線の終わり)
+function trackPt(G, s, lane){
+  s = ((s%G.P)+G.P)%G.P; const r=G.rad+lane, a=Math.PI*G.rad, L=G.Ls; let x,y;
+  if(s<a){ const th=-Math.PI/2+s/G.rad; x=L/2+r*Math.cos(th); y=r*Math.sin(th); }
+  else if(s<a+L){ x=L/2-(s-a); y=r; }
+  else if(s<2*a+L){ const th=Math.PI/2+(s-a-L)/G.rad; x=-L/2+r*Math.cos(th); y=r*Math.sin(th); }
+  else { x=-L/2+(s-2*a-L); y=-r; }
+  return [G.mirror?-x:x, y];
+}
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function startAnim(replay){
+  const r = RACE_BY_ID[cur.race], card = ensureCard(r);
+  let res = S.results[r.id];
+  if(!res){ res = finalizeRace(r); renderWallet(); renderCalendar(); }
+  const o = res.o, n = card.entries.length, G = geom(r);
+  anim = { r, card, o, res, G, t:-1.2, last:performance.now(), lanes:new Array(n).fill(0).map((_,i)=>1+i*1.7), cam:null, said:new Set(), done:false, finishedAt:null, replay };
+  $("#comm").innerHTML = "";
+  setTab("race");
+  say(`${r.name}、${n}頭がゲートに収まりました。`, 0);
+  requestAnimationFrame(loop);
+}
+function stopAnim(){ anim = null; try{ speechSynthesis.cancel(); }catch(e){} }
+function say(text, t){
+  const li = document.createElement("li");
+  li.innerHTML = `<span class="tm">${t!=null&&t>0?fmtTime(t):"0.0"}</span>${esc(text)}`;
+  const ol = $("#comm"); ol.prepend(li); while(ol.children.length>40) ol.lastChild.remove();
+  if($("#speak").checked && "speechSynthesis" in window){
+    try { if(speechSynthesis.pending) speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang="ja-JP"; u.rate=1.3; speechSynthesis.speak(u); } catch(e){}
+  }
+}
+function nameOf(card,i){ return HORSES[card.entries[i].hid].name; }
+function commentary(a, ds, order){
+  const {r, card, o, said, t} = a, D = r.dist, lead = ds[order[0]];
+  const once = (k, f) => { if(!said.has(k)){ said.add(k); const s=f(); if(s) say(s, t); } };
+  const nm = i => `${card.entries[i].num}番${nameOf(card,i)}`;
+  if(t>=0) once("start", ()=>{ const late = o.events.filter(e=>e.t==="late"); return "ゲートが開いた！スタートしました！" + (late.length? ` おっと、${late.map(e=>nm(e.i)).join("、")}は出遅れた！` : " 各馬そろったスタート。"); });
+  if(lead>=Math.min(350, D*.25)) once("lead", ()=>`先手を取ったのは${nm(order[0])}。2番手に${nameOf(card,order[1])}、続いて${nameOf(card,order[2])}。`);
+  if(o.split1000 && lead>=1000) once("1000", ()=>{ const s=o.split1000; return `1000m通過は${Math.floor(s/60)?Math.floor(s/60)+"分":""}${(s%60).toFixed(1).replace(".","秒")}。${paceLabel(o.pace)}になりました。`; });
+  if(lead>=D*.5) once("mid", ()=>{ const fav = card.pop.indexOf(1); const pos = order.indexOf(fav)+1; return `中間点。1番人気の${nameOf(card,fav)}は${pos<=3?"好位":pos<=Math.ceil(order.length/2)?"中団":"後方"}${pos}番手の位置。最後方は${nameOf(card,order[order.length-1])}。`; });
+  for(const ev of o.events) if(ev.t==="block" && lead>=D*ev.x) once("blk"+ev.i, ()=>`${nm(ev.i)}、前が壁になって追い出しを待たされている！`);
+  const st = GEO[r.geo].L;
+  if(D-lead<=st+250 && D>st+400) once("4c", ()=>`3コーナーから4コーナーへ。先頭は${nameOf(card,order[0])}、外から${nameOf(card,order[3]??order[1])}が進出！`);
+  if(D-lead<=st) once("str", ()=>`最後の直線！ ${r.course}の直線は${st}m。先頭は${nm(order[0])}！`);
+  if(D-lead<=400) once("400", ()=>`残り400！ ${nameOf(card,order[0])}が粘る、${nameOf(card,order[1])}が迫ってくる！`);
+  if(D-lead<=200) once("200", ()=>{ const gap=(ds[order[0]]-ds[order[1]])/2.4; return gap<1 ? `残り200！ ${nameOf(card,order[0])}と${nameOf(card,order[1])}の叩き合い！` : `残り200！ ${nameOf(card,order[0])}、リードは${gap.toFixed(0)}馬身！`; });
+  const w = o.order[0];
+  if(t>=o.T[w]) once("goal", ()=>{ const m = marginText(o.T[o.order[1]]-o.T[w], o.vEnd); return `${nameOf(card,w)}、ゴールイン！ 2026年の${r.name}を制しました！ 2着は${nameOf(card,o.order[1])}、着差は${m==="ハナ"||m==="アタマ"||m==="クビ"||m==="大差"?m:m+"馬身"}。`; });
+}
+function loop(now){
+  if(!anim) return;
+  const a = anim; const dt = Math.min(.1,(now-a.last)/1000); a.last = now;
+  a.t += dt*speed;
+  const n = a.card.entries.length, D = a.r.dist;
+  const ds = a.card.entries.map((e,i)=> a.t<=0 ? 0 : horseDist(a.o, a.r, a.card, i, a.t));
+  const order = ds.map((d,i)=>[d,i]).sort((x,y)=>y[0]-x[0] || a.o.T[x[1]]-a.o.T[y[1]]).map(x=>x[1]);
+  // 進路: 前に馬がいれば外へ
+  const tgt = new Array(n); const taken = [];
+  for(const i of order){
+    let lane = 0;
+    while(taken.some(([d,l])=>l===lane && d-ds[i] < 4.2)) lane++;
+    if(a.t<=0) lane = i; // ゲート
+    taken.push([ds[i],lane]); tgt[i] = 1.2+lane*1.8;
+  }
+  for(let i=0;i<n;i++) a.lanes[i] += (tgt[i]-a.lanes[i])*Math.min(1, dt*speed*1.4);
+  if(a.t>=0) commentary(a, ds, order);
+  draw(a, ds, order);
+  if(now - (a.lastList||0) > 180){ a.lastList = now; renderStandings(a, ds, order); }
+  const allIn = a.card.entries.every((e,i)=>a.t>=a.o.T[i]);
+  if(allIn && !a.finishedAt) a.finishedAt = a.t;
+  if(a.finishedAt && a.t - a.finishedAt > 3*speed/3+2){
+    renderStandings(a, ds, order); anim = null; renderCalendar();
+    setTimeout(()=>{ if(!anim && cur.tab==="race" && cur.race===a.r.id) setTab("result"); }, 1200);
+    return;
+  }
+  requestAnimationFrame(loop);
+}
+function renderStandings(a, ds, order){
+  const bets = S.bets[a.r.id]||[]; const mine = new Set(bets.flatMap(b=>b.sel));
+  const leadD = ds[order[0]];
+  const fin = a.card.entries.map((e,i)=>a.t>=a.o.T[i]);
+  const rank = a.o.order;
+  const list = fin.every(Boolean) ? rank : order;
+  $("#standings").innerHTML = list.map((i,k)=>{
+    const e = a.card.entries[i];
+    const gap = k===0 ? (fin[i]?fmtTime(a.o.T[i]):"先頭") : fin[i] ? marginText(a.o.T[i]-a.o.T[list[k-1]], a.o.vEnd) : ((leadD-ds[i])/2.4).toFixed(1)+"馬身";
+    return `<li class="${mine.has(e.num)?"bet":""}"><span class="num">${k+1}</span><span class="waku" style="${wakuStyle(e.waku)}">${e.num}</span><span class="nm">${esc(nameOf(a.card,i))}</span><span class="num hs">${gap}</span></li>`;
+  }).join("");
+}
+function drawIdle(){
+  const r = RACE_BY_ID[cur.race]; const card = ensureCard(r);
+  const fake = { r, card, G:geom(r), t:-1, o:{T:card.entries.map(()=>999), order:[]}, lanes:card.entries.map((_,i)=>1.2+i*1.8), cam:null };
+  draw(fake, card.entries.map(()=>0), card.entries.map((_,i)=>i));
+  $("#standings").innerHTML = `<li style="display:block;border:0" class="hs">「発走！」を押すとここに現在の順位が出ます。</li>`;
+}
+function draw(a, ds, order){
+  const W = cvs.clientWidth, H = cvs.clientHeight; if(!W) return;
+  const {r, G, card} = a, D = r.dist, n = card.entries.length, dirt = r.surf==="D";
+  const sOf = d => G.sF + d - D;
+  // カメラ
+  const lead = ds[order[0]], tail = ds[order[order.length-1]];
+  const spread = Math.max(20, lead-tail);
+  const focusD = a.t<=0 ? 0 : lead - spread*.4;
+  const [fx,fy] = trackPt(G, sOf(focusD), 14);
+  const viewM = clamp(spread*1.5+55, 85, 260) * Math.max(1, 700/W*.8);
+  const k = W/viewM;
+  if(!a.cam) a.cam = {x:fx,y:fy,k};
+  a.cam.x += (fx-a.cam.x)*.12; a.cam.y += (fy-a.cam.y)*.12; a.cam.k += (k-a.cam.k)*.06;
+  const C = a.cam;
+  const X = x => W/2 + (x-C.x)*C.k, Y = y => H/2 - (y-C.y)*C.k;
+  // 背景
+  ctx.fillStyle = "#16301d"; ctx.fillRect(0,0,W,H);
+  const path = (lane) => { ctx.beginPath(); for(let s=0;s<=G.P;s+=4){ const [x,y]=trackPt(G,s,lane); s===0?ctx.moveTo(X(x),Y(y)):ctx.lineTo(X(x),Y(y)); } ctx.closePath(); };
+  // 内馬場
+  path(-1); ctx.fillStyle = "#2a5a33"; ctx.fill();
+  // 走路
+  path(16); ctx.lineWidth = 34*C.k; ctx.strokeStyle = dirt ? "#9c7650" : "#3f9a4c"; ctx.stroke();
+  // 芝の刈り目
+  if(!dirt){ ctx.save(); path(16); ctx.lineWidth = 34*C.k; ctx.setLineDash([12*C.k, 12*C.k]); ctx.strokeStyle="rgba(255,255,255,.05)"; ctx.stroke(); ctx.restore(); }
+  // 内ラチ・外ラチ
+  ctx.lineWidth = Math.max(1.5, .35*C.k); ctx.strokeStyle = "#f4f4ee"; path(-.4); ctx.stroke(); path(32.6); ctx.stroke();
+  // ハロン棒
+  ctx.font = `600 ${Math.max(10, Math.min(14, 2.2*C.k))}px "IBM Plex Mono", monospace`; ctx.textAlign="center"; ctx.textBaseline="middle";
+  for(let m=200; m<=Math.max(D,G.P); m+=200){
+    const [x,y] = trackPt(G, G.sF-m, -2.2); const sx=X(x), sy=Y(y);
+    if(sx<-30||sx>W+30||sy<-30||sy>H+30) continue;
+    ctx.fillStyle = m%400===0 ? "#e8463a" : "#f4f4ee"; ctx.fillRect(sx-2,sy-2,4,4);
+    if(m<=D){ ctx.fillStyle="rgba(255,255,255,.85)"; const [lx,ly]=trackPt(G,G.sF-m,-6); ctx.fillText(m+"", X(lx), Y(ly)); }
+  }
+  // ゴール板とスタート
+  const line = (s, col, w) => { const [x1,y1]=trackPt(G,s,-.4), [x2,y2]=trackPt(G,s,32.6); ctx.strokeStyle=col; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(X(x1),Y(y1)); ctx.lineTo(X(x2),Y(y2)); ctx.stroke(); };
+  line(G.sF, "#ffffff", Math.max(2,.5*C.k)); line(G.sF, "#e8463a", Math.max(1,.2*C.k));
+  { const [x,y]=trackPt(G,G.sF,-7); ctx.fillStyle="#fff"; ctx.fillText("ゴール", X(x), Y(y)); }
+  if(a.t<=2){ line(sOf(0), "rgba(255,255,255,.6)", Math.max(1,.3*C.k)); }
+  // 馬
+  const bets = S.bets[r.id]||[]; const mine = new Set(bets.flatMap(b=>b.sel));
+  const rad = clamp(.95*C.k, 5, 13);
+  const drawOrder = [...order].reverse();
+  for(const i of drawOrder){
+    const e = card.entries[i];
+    const [x,y] = trackPt(G, sOf(ds[i]), a.lanes[i]);
+    const sx = X(x), sy = Y(y);
+    ctx.beginPath(); ctx.arc(sx+1.5, sy+2, rad, 0, 6.283); ctx.fillStyle="rgba(0,0,0,.3)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, rad, 0, 6.283); ctx.fillStyle = WAKU_COLORS[e.waku-1][0]; ctx.fill();
+    ctx.lineWidth = mine.has(e.num) ? 3 : 1.2; ctx.strokeStyle = mine.has(e.num) ? "#f5c542" : "rgba(0,0,0,.6)"; ctx.stroke();
+    ctx.fillStyle = WAKU_COLORS[e.waku-1][1]; ctx.font = `600 ${Math.round(rad*1.05)}px "IBM Plex Mono", monospace`; ctx.fillText(e.num, sx, sy+.5);
+  }
+  // 先頭馬の名前
+  if(a.t>0){ const i=order[0]; const [x,y]=trackPt(G, sOf(ds[i]), a.lanes[i]); ctx.font = `700 12px "Zen Kaku Gothic New", sans-serif`; const t=nameOf(card,i); const tw=ctx.measureText(t).width+10; ctx.fillStyle="rgba(0,0,0,.65)"; ctx.fillRect(X(x)-tw/2, Y(y)-rad-22, tw, 17); ctx.fillStyle="#fff"; ctx.fillText(t, X(x), Y(y)-rad-13); }
+  // 情報表示
+  ctx.textAlign="left"; ctx.fillStyle="rgba(0,0,0,.55)"; ctx.fillRect(10,10,178,52);
+  ctx.fillStyle="#fff"; ctx.font = `700 12px "Zen Kaku Gothic New", sans-serif`; ctx.fillText(`${r.course} ${dirt?"ダ":"芝"}${D}m ${COND[card.cond]}`, 18, 25);
+  ctx.font = `600 18px "IBM Plex Mono", monospace`;
+  const remain = Math.max(0, Math.round(D - lead));
+  ctx.fillText(a.t<=0 ? "発走前" : (remain>0 ? `残り ${remain}m` : "ゴール"), 18, 47);
+  ctx.textAlign="right"; ctx.font = `600 14px "IBM Plex Mono", monospace`; ctx.fillText(a.t>0?fmtTime(Math.min(a.t, a.o.T[a.o.order[0]] ?? a.t)):"", 182, 47);
+  // ミニマップ
+  const mw = Math.min(170, W*.32), mh = mw*.55, mx = W-mw-10, my = 10;
+  ctx.fillStyle="rgba(0,0,0,.5)"; ctx.fillRect(mx,my,mw,mh);
+  const ext = G.Ls/2+G.rad+30, mk = Math.min((mw-16)/(2*ext), (mh-12)/(2*(G.rad+30)));
+  const MX = x => mx+mw/2+x*mk, MY = y => my+mh/2-y*mk;
+  ctx.beginPath(); for(let s=0;s<=G.P;s+=20){ const [x,y]=trackPt(G,s,10); s===0?ctx.moveTo(MX(x),MY(y)):ctx.lineTo(MX(x),MY(y)); } ctx.closePath();
+  ctx.lineWidth = 4; ctx.strokeStyle = dirt?"#9c7650":"#3f9a4c"; ctx.stroke();
+  { const [x,y]=trackPt(G,G.sF,10); ctx.fillStyle="#e8463a"; ctx.fillRect(MX(x)-1, MY(y)-5, 2, 10); }
+  for(const i of drawOrder){ const [x,y]=trackPt(G, sOf(ds[i]), 10); ctx.beginPath(); ctx.arc(MX(x),MY(y),2.2,0,6.283); ctx.fillStyle = mine.has(card.entries[i].num)?"#f5c542":WAKU_COLORS[card.entries[i].waku-1][0]; ctx.fill(); }
+  ctx.textAlign="center";
+}
+
+// ───────────────────────── 結果 ─────────────────────────
+function renderResult(){
+  const r = RACE_BY_ID[cur.race], c = ensureCard(r), res = S.results[r.id], el = $("#view-result");
+  if(!res){ el.innerHTML = `<p class="hint">まだ発走していません。</p>`; return; }
+  const o = res.o;
+  const podium = o.order.slice(0,3).map((i,k)=>{ const e=c.entries[i], h=HORSES[e.hid];
+    return `<div class="podium"><div class="p">${k+1}着</div><div class="nm"><span class="waku" style="${wakuStyle(e.waku)}">${e.num}</span> ${esc(h.name)}</div><div class="hs">${esc(e.jockey)} ・ ${c.pop[i]}番人気 ・ 単勝 ${c.odds[i].toFixed(1)}倍</div></div>`; }).join("");
+  const fastest = Math.min(...o.l3f);
+  let rows = o.order.map((i,k)=>{ const e=c.entries[i], h=HORSES[e.hid];
+    const m = k===0 ? "" : marginText(o.T[i]-o.T[o.order[k-1]], o.vEnd);
+    return `<tr><td class="num"><b>${k+1}</b></td><td><span class="waku" style="${wakuStyle(e.waku)}">${e.waku}</span></td><td class="num">${e.num}</td><td><span class="hn">${esc(h.name)}</span></td><td>${h.sex}${h.age}</td><td>${esc(e.jockey)}</td><td class="r num">${fmtTime(o.T[i])}</td><td>${m}</td><td class="r num" ${o.l3f[i]===fastest?'style="color:var(--miss);font-weight:700"':""}>${o.l3f[i].toFixed(1)}</td><td class="r num">${c.pop[i]}</td><td class="r num">${c.odds[i].toFixed(1)}</td></tr>`; }).join("");
+  const payRows = BET_TYPES.map(b=>res.pays[b.id].map((p,k)=>`<tr><td>${k===0?b.label:""}</td><td class="num">${selText(b.id,p.sel)}</td><td class="r num">${yen(p.pay)}</td></tr>`).join("")).join("");
+  const my = res.settled.length ? `<table><thead><tr><th>券種</th><th>買い目</th><th class="r">購入</th><th class="r">払戻</th></tr></thead><tbody>${res.settled.map(b=>`<tr><td>${BT[b.type].label}</td><td class="num">${selText(b.type,b.sel)}</td><td class="r num">${yen(b.amount)}</td><td class="r num ${b.back?"hit":"miss"}">${b.back?yen(b.back):"はずれ"}</td></tr>`).join("")}
+    <tr><td colspan="2"><b>合計</b></td><td class="r num">${yen(res.stake)}</td><td class="r num ${res.ret>=res.stake?"hit":"miss"}"><b>${yen(res.ret)}</b></td></tr></tbody></table>` : `<p class="hint" style="padding:0 12px">このレースは馬券を買っていません。</p>`;
+  const ev = o.events.map(e=>`${c.entries[e.i].num}番${nameOf(c,e.i)}：${e.t==="late"?"出遅れ":"直線で前が詰まる不利"}`).join(" ／ ");
+  el.innerHTML = `<div class="result-top">${podium}</div>
+    <div class="meta"><span class="tag">勝ちタイム <b class="num">${fmtTime(o.T[o.order[0]])}</b></span><span class="tag">${paceLabel(o.pace)}${o.split1000?`（1000m ${o.split1000.toFixed(1)}秒）`:""}</span><span class="tag">馬場 ${COND[c.cond]}</span>${ev?`<span class="tag">${esc(ev)}</span>`:""}</div>
+    <div class="scroll"><table><thead><tr><th>着</th><th>枠</th><th>馬番</th><th>馬名</th><th>性齢</th><th>騎手</th><th class="r">タイム</th><th>着差</th><th class="r">上がり3F</th><th class="r">人気</th><th class="r">単勝</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="two">
+      <div><p class="section-title">払戻金（100円あたり）</p><div class="scroll"><table><tbody>${payRows}</tbody></table></div></div>
+      <div><p class="section-title">あなたの馬券</p><div class="scroll">${my}</div>
+        <div class="controls"><button class="btn" id="replayBtn">レースを再生</button><button class="btn primary" id="rerun">別の展開でもう一度</button></div></div>
+    </div>`;
+}
+
+// ───────────────────────── 年間成績 ─────────────────────────
+let confirmReset = false;
+function simulateRest(){
+  for(const r of RACES){ if(!S.results[r.id]){ ensureCard(r); finalizeRace(r); } }
+  renderWallet(); renderCalendar(); renderSeason();
+}
+let big = null;
+function runBig(N){
+  const card = ensureCard(RACE_BY_ID.milecs), n = card.entries.length;
+  const w = new Float64Array(n), t2 = new Float64Array(n), t3 = new Float64Array(n), sc = new Float64Array(n), sty = {};
+  for(let k=0;k<N;k++){
+    const pace = samplePace(card.entries);
+    for(let i=0;i<n;i++){ const e=card.entries[i]; let s=e.base+e.pc*pace+gauss()*SIGMA; if(Math.random()<P_LATE) s-=4; else if(Math.random()<P_BLOCK) s-=3; sc[i]=s; }
+    const ord = Array.from(sc.keys()).sort((a,b)=>sc[b]-sc[a]);
+    w[ord[0]]++; t2[ord[0]]++; t2[ord[1]]++; t3[ord[0]]++; t3[ord[1]]++; t3[ord[2]]++;
+    const st = HORSES[card.entries[ord[0]].hid].style; sty[st]=(sty[st]||0)+1;
+  }
+  big = {N, cond:card.cond, rows: card.entries.map((e,i)=>({i, w:w[i]/N, t2:t2[i]/N, t3:t3[i]/N})).sort((a,b)=>b.w-a.w), sty};
+}
+function renderSeason(){
+  const card = ensureCard(RACE_BY_ID.milecs);
+  if(!big || big.cond!==card.cond) runBig(10000);
+  const stake = S.log.reduce((a,l)=>a+l.stake,0), ret = S.log.reduce((a,l)=>a+l.ret,0), hits = S.log.filter(l=>l.ret>0).length;
+  const maxW = big.rows[0].w;
+  const rows = big.rows.map((x,k)=>{ const e=card.entries[x.i], h=HORSES[e.hid];
+    return `<tr><td class="num">${k+1}</td><td><span class="waku" style="${wakuStyle(e.waku)}">${e.num}</span></td><td class="hn">${esc(h.name)}</td><td>${esc(e.jockey)}</td><td><span class="style">${h.style}</span></td>
+      <td class="num"><span class="bar" style="width:${Math.max(2,Math.round(x.w/maxW*70))}px"></span>${(x.w*100).toFixed(1)}%</td><td class="r num">${(x.t2*100).toFixed(1)}%</td><td class="r num">${(x.t3*100).toFixed(1)}%</td>
+      <td class="r num">${x.w>0?(0.8/x.w).toFixed(1):"—"}</td><td class="r num ref">${h.ref?h.ref.toFixed(1):"—"}</td></tr>`; }).join("");
+  const sty = Object.entries(big.sty).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="tag">${k} <b>${(v/big.N*100).toFixed(0)}%</b></span>`).join("");
+  $("#view-season").innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="k">走らせた回数</div><div class="v">${S.history.length}</div></div>
+      <div class="kpi"><div class="k">所持金</div><div class="v">${yen(S.bankroll)}</div></div>
+      <div class="kpi"><div class="k">回収率</div><div class="v">${stake?Math.round(ret/stake*100)+"%":"—"}</div></div>
+      <div class="kpi"><div class="k">的中レース</div><div class="v">${hits}<span class="hs"> / ${S.log.length}</span></div></div>
+    </div>
+    <p class="section-title">${big.N.toLocaleString("ja-JP")}回走らせた結果（馬場 ${COND[big.cond]}）</p>
+    <div class="meta">勝ち馬の脚質：${sty}</div>
+    <div class="scroll"><table><thead><tr><th>#</th><th>馬番</th><th>馬名</th><th>騎手</th><th>脚質</th><th>勝率</th><th class="r">連対率</th><th class="r">複勝率</th><th class="r">シミュ単勝</th><th class="r">メディア予想</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="hint">「メディア予想」は11月19〜20日時点で各紙・予想サイトが出した予想オッズ（記事により差があり、空欄は未確認）。実際の発売オッズではありません。</p>
+    <div class="controls" style="margin-top:14px">
+      <button class="btn primary" id="runBig">もう一度1万回走らせる</button>
+      ${S.bankroll<100?`<button class="btn" id="topup">資金を補充（+¥10,000）</button>`:""}
+      ${confirmReset?`<span class="confirm">所持金と履歴をすべて消します。<button class="btn" id="resetYes" style="background:var(--miss);color:#fff">消して最初から</button><button class="btn" id="resetNo">やめる</button></span>`:`<button class="btn" id="reset">所持金と履歴をリセット</button>`}
+    </div>`;
+}
+
+// ───────────────────────── イベント ─────────────────────────
+document.addEventListener("click", ev=>{
+  const b = ev.target.closest("button"); if(!b || b.disabled) return;
+  if(b.dataset.race){ selectRace(b.dataset.race); window.scrollTo({top:0}); return; }
+  if(b.dataset.tab){ if(b.dataset.tab!=="race") { /* アニメ継続中でもタブ移動可 */ } setTab(b.dataset.tab); return; }
+  if(b.dataset.bt){ cur.betType = b.dataset.bt; cur.picks = []; renderBetPanel(); return; }
+  if(b.dataset.pick){
+    const n = +b.dataset.pick, bt = BT[cur.betType], k = cur.picks.indexOf(n);
+    if(k>=0) cur.picks.splice(k,1); else if(cur.picks.length<bt.n) cur.picks.push(n); else if(bt.n===1) cur.picks=[n];
+    renderBetPanel(); return;
+  }
+  if(b.dataset.del!=null){ const bets=S.bets[cur.race]; const x=bets.splice(+b.dataset.del,1)[0]; S.bankroll+=x.amount; save(); renderWallet(); renderBetPanel(); return; }
+  if(b.dataset.mark){ const c=S.cards[cur.race]; const seq=["","◎","○","▲","△","✕"]; const nx=seq[(seq.indexOf(c.marks[b.dataset.mark]||"")+1)%seq.length]; if(nx) c.marks[b.dataset.mark]=nx; else delete c.marks[b.dataset.mark]; save(); b.textContent=nx; return; }
+  if(b.dataset.q){ $("#amount").value = b.dataset.q; return; }
+  if(b.dataset.speed){ speed = +b.dataset.speed; renderSpeed(); return; }
+  switch(b.id){
+    case "amtUp": $("#amount").value = (+$("#amount").value||0)+100; break;
+    case "amtDown": $("#amount").value = Math.max(100,(+$("#amount").value||0)-100); break;
+    case "addBet": addBet(); break;
+    case "goBtn": case "replayBtn": startAnim(!!S.results[cur.race]); break;
+    case "skipBtn": if(anim){ anim.t = Math.max(...anim.o.T)+1; anim.said.add("4c"); anim.said.add("400"); anim.said.add("200"); } break;
+    case "rerun": stopAnim(); delete S.results.milecs; S.bets.milecs = []; save(); selectRace("milecs"); break;
+    case "runBig": runBig(10000); renderSeason(); break;
+    case "topup": S.bankroll += 10000; S.topups=(S.topups||0)+1; save(); renderWallet(); renderSeason(); break;
+    case "reset": confirmReset = true; renderSeason(); break;
+    case "resetNo": confirmReset = false; renderSeason(); break;
+    case "resetYes": confirmReset = false; stopAnim(); S = freshState(); save(); renderWallet(); selectRace(RACES[0].id); setTab("season"); break;
+  }
+});
+function renderSpeed(){ $("#speedSeg").innerHTML = [1,2,3,5,8].map(s=>`<button data-speed="${s}" aria-pressed="${s===speed}">×${s}</button>`).join(""); }
+
+renderSpeed(); renderWallet();
+document.addEventListener("change", ev=>{
+  if(ev.target.id!=="condSel") return;
+  stopAnim();
+  for(const b of (S.bets.milecs||[])) S.bankroll += b.amount;
+  S.cond = +ev.target.value; S.bets.milecs = []; delete S.results.milecs; delete S.cards.milecs; big = null; save();
+  renderWallet(); selectRace("milecs");
+});
+selectRace("milecs");
+</script>
+</body>
+</html>
