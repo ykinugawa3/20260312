@@ -97,6 +97,8 @@ details.horse summary .meta { font-size: .72rem; color: var(--muted); }
 .edit label { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 2.8em; gap: 8px; align-items: center; font-size: .8rem; }
 .edit input[type=range] { width: 100%; accent-color: var(--turf); }
 .edit select { font: inherit; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.edit input[type=number] { font: inherit; width: 6.5em; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.ev-good { color: var(--accent); font-weight: 700; }
 .edit .out { text-align: right; font-variant-numeric: tabular-nums; }
 .scratched .nm { text-decoration: line-through; opacity: .5; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
@@ -106,7 +108,7 @@ details.horse summary .meta { font-size: .72rem; color: var(--muted); }
   <header>
     <h1>淀マイル・シミュレーター</h1>
     <p>マイルチャンピオンシップ 2026（11/22）／ 京都 芝外回り1600m・右回り</p>
-    <div class="chips"><span class="chip">出走馬・馬番は暫定（確定前）</span><span class="chip">能力値は11/16時点の主観予想</span><span class="chip">数値は自由に調整可</span></div>
+    <div class="chips"><span class="chip">確定出馬表・18頭</span><span class="chip">能力値は11/22 13:35のオッズから逆算</span><span class="chip">数値は自由に調整可</span></div>
   </header>
 
   <section aria-label="レース映像">
@@ -157,6 +159,7 @@ details.horse summary .meta { font-size: .72rem; color: var(--muted); }
     <h2>10,000回シミュレーション</h2>
     <div class="card" style="display:grid;gap:10px">
       <button class="btn primary" id="mcBtn">同じ条件で10,000回走らせる</button>
+      <p class="note">期待値 ＝ シミュレーションの勝率 × 単勝オッズ。1.00を超えると（赤字）、このモデル上は単勝が割安です。初期の能力値はオッズから逆算しているので、条件を変えたり能力を調整したりしたときの差が見どころです。</p>
       <p class="note" id="mcNote">天候・馬場・ペースの設定を反映します。雨はレース中に馬場が悪くなる分として、道悪の得意・不得意をさらに強く効かせます。ペース「おまかせ」は逃げ・先行馬の数から毎回抽選します。</p>
       <div class="tablewrap"><table id="mcTbl"></table></div>
     </div>
@@ -196,21 +199,27 @@ details.horse summary .meta { font-size: .72rem; color: var(--muted); }
 // ===================================================================== MODEL START
 const FRAME = { 1:["#ffffff","#111"],2:["#222222","#fff"],3:["#e60012","#fff"],4:["#1e5bc6","#fff"],5:["#f5d400","#111"],6:["#1a9b48","#fff"],7:["#f08300","#111"],8:["#f5a0c0","#111"] };
 const STYLES = ["逃げ","先行","差し","追込"];
-// 暫定データ: 2026/11/16 時点の登録馬のうち検索で確認できた13頭。番号は仮 (枠順確定後に差し替え)
+// 確定出馬表 (2026/11/22) と 13:35 時点の単勝オッズ。能力値はオッズの勝率に合うよう逆算 (calibrate)。
+// 脚質は仮置き (逃げ=シックスペンスなど)。エンブロイダリーは半年ぶりの計画的な直行。
 const DEFAULT_FIELD = [
-  {no:1, name:"エンブロイダリー", jockey:"ルメール", info:"牝4", style:1, rating:65.7, wet:0.0, unc:1.1, kg:56, mixed:0, layoff:1},
-  {no:2, name:"ロデオドライブ", jockey:"モレイラ", info:"牡3", style:2, rating:65.4, wet:0.0, unc:1.0, kg:57, mixed:0, layoff:0},
-  {no:3, name:"スターアニス", jockey:"松山", info:"牝3", style:1, rating:64.4, wet:0.0, unc:1.05, kg:55, mixed:0, layoff:0},
-  {no:4, name:"ガイアフォース", jockey:"西村淳", info:"牡7", style:1, rating:65.7, wet:0.0, unc:1.0, kg:58, mixed:0, layoff:0},
-  {no:5, name:"ワールズエンド", jockey:"C.デムーロ", info:"牡5", style:1, rating:65.1, wet:0.0, unc:1.15, kg:58, mixed:0, layoff:0},
-  {no:6, name:"アンパドゥ", jockey:"未定", info:"—", style:2, rating:64.5, wet:0.0, unc:1.1, kg:58, mixed:0, layoff:0},
-  {no:7, name:"アドマイヤズーム", jockey:"武豊", info:"—", style:2, rating:64.1, wet:0.0, unc:1.1, kg:58, mixed:0, layoff:0},
-  {no:8, name:"エコロアルバ", jockey:"未定", info:"—", style:2, rating:64.1, wet:0.0, unc:1.1, kg:58, mixed:0, layoff:0},
-  {no:9, name:"エルデナリ", jockey:"未定", info:"—", style:2, rating:63.5, wet:0.0, unc:1.35, kg:58, mixed:0, layoff:0},
-  {no:10, name:"シックスペンス", jockey:"未定", info:"—", style:0, rating:64.0, wet:0.0, unc:1.35, kg:58, mixed:0, layoff:0},
-  {no:11, name:"ココナッツブラウン", jockey:"未定", info:"—", style:2, rating:63.2, wet:0.0, unc:1.35, kg:58, mixed:0, layoff:0},
-  {no:12, name:"ドラゴンブースト", jockey:"未定", info:"—", style:1, rating:63.7, wet:0.0, unc:1.35, kg:58, mixed:0, layoff:0},
-  {no:13, name:"ジューンテイク", jockey:"未定", info:"—", style:2, rating:62.8, wet:0.0, unc:1.35, kg:58, mixed:0, layoff:0},
+  {no:1, name:"エルデナリ", jockey:"バルザロー", info:"セ3・外", style:2, rating:63.9, wet:0.0, unc:1.3, kg:57, mixed:0, layoff:0, odds:7.7},
+  {no:2, name:"エンブロイダリー", jockey:"ルメール", info:"牝4", style:1, rating:64.8, wet:0.0, unc:1.1, kg:56, mixed:0, layoff:1, odds:5.6},
+  {no:3, name:"ドラゴンブースト", jockey:"浜中", info:"牡4", style:1, rating:62.2, wet:0.0, unc:1.2, kg:58, mixed:0, layoff:0, odds:107.6},
+  {no:4, name:"シックスペンス", jockey:"プーシャン", info:"牡5", style:0, rating:63.5, wet:0.0, unc:1.15, kg:58, mixed:0, layoff:0, odds:30.2},
+  {no:5, name:"アドマイヤズーム", jockey:"武豊", info:"牡4", style:2, rating:64.8, wet:0.0, unc:1.1, kg:58, mixed:0, layoff:0, odds:7.4},
+  {no:6, name:"ピコローズ", jockey:"三浦", info:"牝4", style:2, rating:61.3, wet:0.0, unc:1.2, kg:56, mixed:0, layoff:0, odds:81.3},
+  {no:7, name:"ココナッツブラウン", jockey:"北村友", info:"牝6", style:2, rating:62.2, wet:0.0, unc:1.15, kg:56, mixed:0, layoff:0, odds:36.0},
+  {no:8, name:"ロデオドライブ", jockey:"モレイラ", info:"牡3", style:2, rating:64.9, wet:0.0, unc:1.0, kg:57, mixed:0, layoff:0, odds:5.9},
+  {no:9, name:"ジューンテイク", jockey:"川田", info:"牡5", style:1, rating:62.6, wet:0.0, unc:1.2, kg:58, mixed:0, layoff:0, odds:83.9},
+  {no:10, name:"ウォーターリヒト", jockey:"幸", info:"牡5", style:3, rating:62.2, wet:0.0, unc:1.2, kg:58, mixed:0, layoff:0, odds:65.2},
+  {no:11, name:"ガイアフォース", jockey:"西村淳", info:"牡7", style:1, rating:65.3, wet:0.0, unc:1.0, kg:58, mixed:0, layoff:0, odds:9.7},
+  {no:12, name:"ワールズエンド", jockey:"C.デムーロ", info:"牡5", style:1, rating:64.9, wet:0.0, unc:1.1, kg:58, mixed:0, layoff:0, odds:11.8},
+  {no:13, name:"レザベーション", jockey:"田口", info:"牡3", style:2, rating:61.6, wet:0.0, unc:1.2, kg:57, mixed:0, layoff:0, odds:111.3},
+  {no:14, name:"スターアニス", jockey:"松山", info:"牝3", style:1, rating:64.9, wet:0.0, unc:1.05, kg:55, mixed:0, layoff:0, odds:4.8},
+  {no:15, name:"エコロブルーム", jockey:"坂井", info:"牡5", style:1, rating:62.9, wet:0.0, unc:1.2, kg:58, mixed:0, layoff:0, odds:66.2},
+  {no:16, name:"スズハローム", jockey:"藤懸", info:"牡6", style:3, rating:63.2, wet:0.0, unc:1.15, kg:58, mixed:0, layoff:0, odds:34.3},
+  {no:17, name:"アンパドゥ", jockey:"岩田望", info:"牡5・外", style:2, rating:64.1, wet:0.0, unc:1.1, kg:58, mixed:0, layoff:0, odds:19.4},
+  {no:18, name:"オフトレイル", jockey:"菅原明", info:"牡5・外", style:2, rating:63.6, wet:0.0, unc:1.15, kg:58, mixed:0, layoff:0, odds:28.2},
 ];
 const frameOf = (no, n) => { // JRA方式: 外枠から順に多頭になる (18頭なら7・8枠が3頭)
   if (n <= 8) return no;
@@ -300,7 +309,7 @@ function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; le
 // ===================================================================== MODEL END
 
 // ----------------------------------------------------------------- 状態
-const STORE_KEY = "yodo-mile-field-v1";
+const STORE_KEY = "yodo-mile-field-v2";
 let field = loadField();
 let going = 0, weather = 0, paceSetting = "auto", speed = 3, betType = "wide";
 let picked = [], tickets = [], lastMC = null;
@@ -552,9 +561,11 @@ function renderMC() {
   const n = lastMC.n, pc = lastMC.paceCount;
   $("mcNote").textContent = `内：${MODEL_OPTS.inner ? "荒れ" : "良好"} ／ 天候：${WEATHER[weather].name} ／ 馬場：${["良", "稍重", "重", "不良"][going]} ／ ペース内訳：スロー${Math.round(pc.slow / n * 100)}%・ミドル${Math.round(pc.mid / n * 100)}%・ハイ${Math.round(pc.high / n * 100)}%`;
   const rows = field.map((h, i) => ({ h, w: lastMC.win[i] / n, t3: lastMC.top3[i] / n })).filter(r => !r.h.out).sort((a, b) => b.t3 - a.t3);
-  const maxT3 = Math.max(...rows.map(r => r.t3));
-  let html = "<thead><tr><th>馬</th><th class='r'>勝率</th><th class='r'>3着内</th><th style='width:32%'></th></tr></thead><tbody>";
-  for (const r of rows) html += `<tr><td>${numChip(r.h.no)} ${r.h.name}</td><td class="r">${(r.w * 100).toFixed(1)}%</td><td class="r">${(r.t3 * 100).toFixed(1)}%</td><td><div class="bar" aria-hidden="true"><i style="width:${(r.t3 / maxT3 * 100).toFixed(1)}%"></i></div></td></tr>`;
+  let html = "<thead><tr><th>馬</th><th class='r'>勝率</th><th class='r'>3着内</th><th class='r'>単勝</th><th class='r'>期待値</th></tr></thead><tbody>";
+  for (const r of rows) {
+    const ev = r.h.odds ? r.w * r.h.odds : null;
+    html += `<tr><td>${numChip(r.h.no)} ${r.h.name}</td><td class="r">${(r.w * 100).toFixed(1)}%</td><td class="r">${(r.t3 * 100).toFixed(1)}%</td><td class="r">${r.h.odds ? r.h.odds.toFixed(1) : "—"}</td><td class="r ${ev !== null && ev >= 1 ? "ev-good" : ""}">${ev !== null ? ev.toFixed(2) : "—"}</td></tr>`;
+  }
   $("mcTbl").innerHTML = html + "</tbody>";
 }
 
@@ -597,6 +608,7 @@ function renderHorses() {
       <label>混合実績<select id="mx${i}" data-k="mixed">${MIXED.map((m, k) => `<option value="${k}" ${k === (h.mixed || 0) ? "selected" : ""}>${m.name}</option>`).join("")}</select><span></span></label>
       <label>休み明け<select id="ly${i}" data-k="layoff">${LAYOFF.map((m, k) => `<option value="${k}" ${k === (h.layoff || 0) ? "selected" : ""}>${m.name}</option>`).join("")}</select><span></span></label>
       <label>脚質<select id="st${i}" data-k="style">${STYLES.map((s, k) => `<option value="${k}" ${k === h.style ? "selected" : ""}>${s}</option>`).join("")}</select><span></span></label>
+      <label>単勝<input type="number" id="od${i}" min="1" step="0.1" inputmode="decimal" value="${h.odds ?? ""}" data-k="odds"><span>倍</span></label>
       <label>出走<select id="ot${i}" data-k="out"><option value="0" ${h.out ? "" : "selected"}>出走</option><option value="1" ${h.out ? "selected" : ""}>取消</option></select><span></span></label>
     </div>
   </details>`).join("");
@@ -604,6 +616,7 @@ function renderHorses() {
 $("horseList").addEventListener("input", e => {
   const el = e.target, k = el.dataset.k; if (!k) return;
   const i = +el.closest("details").dataset.i; const h = field[i];
+  if (k === "odds") { const v = parseFloat(el.value); if (v >= 1) { h.odds = v; saveField(); renderMC(); } return; }
   if (k === "out") { h.out = el.value === "1"; el.closest("details").classList.toggle("scratched", h.out); picked = picked.filter(n => n !== h.no); tickets = tickets.filter(t => !t.horses.includes(h.no)); renderPicker(); }
   else if (k === "style" || k === "kg" || k === "mixed" || k === "layoff") { h[k] = +el.value; el.closest("details").querySelector(".meta").textContent = `${h.info}・${h.kg}kg・${h.jockey}・${STYLES[h.style]}`; }
   else { h[k] = +el.value; el.nextElementSibling.textContent = k === "unc" ? h[k].toFixed(2) : h[k].toFixed(1); }
@@ -630,8 +643,8 @@ $("picker").addEventListener("click", e => {
 });
 $("addTicket").addEventListener("click", () => { if (picked.length !== NEED[betType]) return; addTicket(betType, picked); picked = []; renderPicker(); renderTickets(); });
 $("tickets").addEventListener("click", e => { const b = e.target.closest("[data-del]"); if (!b) return; tickets.splice(+b.dataset.del, 1); renderTickets(); });
-$("preset1").addEventListener("click", () => { [[1, 2], [2, 4], [2, 3]].forEach(p => addTicket("wide", p)); renderTickets(); });
-$("preset2").addEventListener("click", () => { [[1, 2, 3], [1, 2, 4], [1, 2, 5], [1, 2, 6]].forEach(p => addTicket("sanfuku", p)); renderTickets(); });
+$("preset1").addEventListener("click", () => { [[2, 8], [8, 11], [8, 14]].forEach(p => addTicket("wide", p)); renderTickets(); });
+$("preset2").addEventListener("click", () => { [[2, 8, 14], [2, 8, 11], [2, 8, 12], [2, 8, 17]].forEach(p => addTicket("sanfuku", p)); renderTickets(); });
 $("mcBtn").addEventListener("click", runMC);
 $("runBtn").addEventListener("click", startRace);
 $("skipBtn").addEventListener("click", skipRace);
