@@ -1,0 +1,657 @@
+<title>府中ジャパンカップ・シミュレーター</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow column (max 560px) — track canvas first, controls under the thumb, results below */
+:root {
+  --bg: #eef2ee;
+  --surface: #ffffff;
+  --ink: #17221b;
+  --muted: #5b6b60;
+  --line: #d3ddd5;
+  --turf: #2f7d46;
+  --turf-dark: #23613a;
+  --rail: #f7f7f2;
+  --accent: #c8102e;
+  --accent-ink: #ffffff;
+  --gold: #b8860b;
+  --bar: #2f7d46;
+  --bar2: #9cc7a8;
+  --rain: rgba(40, 90, 160, .35);
+  --font-display: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1612; --surface: #18221c; --ink: #e6efe8; --muted: #93a598; --line: #2b3a31;
+    --turf: #2a6b3d; --turf-dark: #1d4f2c; --rail: #d9ddd5; --accent: #ff4d5e; --accent-ink: #1a0508;
+    --gold: #e0b44c; --bar: #4fae6c; --bar2: #2e5b3c; --rain: rgba(170, 200, 240, .35); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1612; --surface: #18221c; --ink: #e6efe8; --muted: #93a598; --line: #2b3a31;
+  --turf: #2a6b3d; --turf-dark: #1d4f2c; --rail: #d9ddd5; --accent: #ff4d5e; --accent-ink: #1a0508;
+  --gold: #e0b44c; --bar: #4fae6c; --bar2: #2e5b3c; --rain: rgba(170, 200, 240, .35); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px 40px;
+}
+.wrap { max-width: 560px; margin: 0 auto; display: grid; gap: 14px; }
+header h1 { font-family: var(--font-display); font-weight: 400; font-size: 1.55rem; line-height: 1.2; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); font-size: .82rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { font-size: .72rem; letter-spacing: .04em; border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; color: var(--muted); background: var(--surface); }
+section { display: grid; gap: 10px; min-width: 0; }
+h2 { font-size: .8rem; letter-spacing: .12em; color: var(--muted); margin: 6px 0 0; font-weight: 700; }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+canvas { display: block; width: 100%; }
+#track { aspect-ratio: 2 / 1; max-width: 100%; }
+#queue { height: 150px; border-top: 1px solid var(--line); }
+.call { padding: 10px 12px; min-height: 3.2em; border-top: 1px solid var(--line); font-weight: 700; font-size: .95rem; }
+.call small { display: block; font-weight: 400; color: var(--muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.controls { display: grid; gap: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.row > label { font-size: .78rem; color: var(--muted); min-width: 3.2em; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; color: var(--ink); font: inherit; font-size: .85rem; padding: 7px 11px; min-height: 36px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--turf); color: #fff; font-weight: 700; }
+.btn { font: inherit; font-weight: 700; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 10px 14px; min-height: 44px; cursor: pointer; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn:focus-visible, .seg button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.btns { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; min-width: 0; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .84rem; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-size: .7rem; letter-spacing: .06em; color: var(--muted); font-weight: 500; padding: 4px 4px; border-bottom: 1px solid var(--line); }
+td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+.num { display: inline-grid; place-items: center; width: 1.7em; height: 1.7em; border-radius: 5px; font-weight: 700; font-size: .78rem; border: 1px solid rgba(0,0,0,.25); }
+.r { text-align: right; }
+.bar { position: relative; height: 8px; border-radius: 4px; background: var(--bar2); overflow: hidden; min-width: 50px; }
+.bar i { position: absolute; inset: 0 auto 0 0; background: var(--bar); border-radius: 4px; }
+.muted { color: var(--muted); font-size: .78rem; }
+.note { font-size: .76rem; color: var(--muted); margin: 0; }
+.picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.picker button { font: inherit; font-weight: 700; font-size: .85rem; width: 2.6em; height: 2.6em; border-radius: 8px; border: 2px solid transparent; cursor: pointer; }
+.picker button[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.picker button:disabled { opacity: .25; }
+.tickets { display: grid; gap: 6px; }
+.ticket { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; font-size: .85rem; font-variant-numeric: tabular-nums; border: 1px dashed var(--line); border-radius: 10px; padding: 6px 8px; }
+.ticket button { font: inherit; border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px 6px; }
+.total { display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; padding-top: 6px; }
+.total b { font-family: var(--font-display); font-weight: 400; font-size: 1.4rem; color: var(--accent); }
+details.horse { border-bottom: 1px solid var(--line); padding: 8px 0; }
+details.horse:last-child { border-bottom: 0; }
+details.horse summary { display: flex; gap: 8px; align-items: center; cursor: pointer; list-style: none; }
+details.horse summary::-webkit-details-marker { display: none; }
+details.horse summary .nm { flex: 1; min-width: 0; font-weight: 700; }
+details.horse summary .meta { font-size: .72rem; color: var(--muted); }
+.edit { display: grid; gap: 8px; padding: 10px 0 4px; }
+.edit label { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 2.8em; gap: 8px; align-items: center; font-size: .8rem; }
+.edit input[type=range] { width: 100%; accent-color: var(--turf); }
+.edit select { font: inherit; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.edit input[type=number] { font: inherit; width: 6.5em; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.ev-good { color: var(--accent); font-weight: 700; }
+.edit .out { text-align: right; font-variant-numeric: tabular-nums; }
+.scratched .nm { text-decoration: line-through; opacity: .5; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>府中ジャパンカップ・シミュレーター</h1>
+    <p>ジャパンカップ 2026（11/29）／ 東京 芝2400m・左回り ／ 登録18頭</p>
+    <div class="chips"><span class="chip">番号は仮（枠順確定は11/27）</span><span class="chip">オッズは予想オッズ・仮置き</span><span class="chip">数値は自由に調整可</span></div>
+  </header>
+
+  <section aria-label="レース映像">
+    <div class="stage">
+      <canvas id="track" aria-label="コース上の各馬の位置"></canvas>
+      <canvas id="queue" aria-label="先頭からの隊列"></canvas>
+      <div class="call" id="call" aria-live="polite">条件を選んで「レース開始」を押してください<small id="clock">—</small></div>
+    </div>
+    <div class="controls">
+      <div class="row"><label>馬場</label>
+        <div class="seg" id="going" role="group" aria-label="馬場状態">
+          <button data-v="0">良</button><button data-v="1">稍重</button><button data-v="2">重</button><button data-v="3">不良</button>
+        </div>
+      </div>
+      <div class="row"><label>内の状態</label>
+        <div class="seg" id="inner" role="group" aria-label="内ラチ沿いの芝の状態">
+          <button data-v="0">良好</button><button data-v="1">荒れ（外差し有利）</button>
+        </div>
+      </div>
+      <div class="row"><label>天候</label>
+        <div class="seg" id="weather" role="group" aria-label="天候">
+          <button data-v="0">晴</button><button data-v="1">曇</button><button data-v="2">小雨</button><button data-v="3">雨</button>
+        </div>
+      </div>
+      <div class="row"><label>ペース</label>
+        <div class="seg" id="pace" role="group" aria-label="ペース">
+          <button data-v="auto">おまかせ</button><button data-v="slow">スロー</button><button data-v="mid">ミドル</button><button data-v="high">ハイ</button>
+        </div>
+      </div>
+      <div class="row"><label>再生</label>
+        <div class="seg" id="speed" role="group" aria-label="再生速度">
+          <button data-v="1">×1</button><button data-v="3">×3</button><button data-v="8">×8</button>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn primary" id="runBtn">▶ レース開始</button>
+        <button class="btn" id="skipBtn" disabled>結果へ</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="resultSec" hidden>
+    <h2>このレースの着順</h2>
+    <div class="card tablewrap"><table id="resultTbl"></table></div>
+  </section>
+
+  <section>
+    <h2>10,000回シミュレーション</h2>
+    <div class="card" style="display:grid;gap:10px">
+      <button class="btn primary" id="mcBtn">同じ条件で10,000回走らせる</button>
+      <p class="note">期待値 ＝ シミュレーションの勝率 × 単勝オッズ。1.00を超えると（赤字）、このモデル上は単勝が割安です。初期の能力値はオッズから逆算しているので、条件を変えたり能力を調整したりしたときの差が見どころです。</p>
+      <p class="note" id="mcNote">天候・馬場・ペースの設定を反映します。雨はレース中に馬場が悪くなる分として、道悪の得意・不得意をさらに強く効かせます。ペース「おまかせ」は逃げ・先行馬の数から毎回抽選します。</p>
+      <div class="tablewrap"><table id="mcTbl"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>馬券の的中率チェック</h2>
+    <div class="card" style="display:grid;gap:10px">
+      <div class="row">
+        <div class="seg" id="betType" role="group" aria-label="券種">
+          <button data-v="fuku">複勝</button><button data-v="tan">単勝</button><button data-v="wide">ワイド</button><button data-v="umaren">馬連</button><button data-v="sanfuku">3連複</button>
+        </div>
+      </div>
+      <div class="picker" id="picker"></div>
+      <div class="row">
+        <button class="btn" id="addTicket">買い目に追加</button>
+        <button class="btn" id="preset1">例：ワイド3点</button>
+        <button class="btn" id="preset2">例：3連複3点</button>
+      </div>
+      <div class="tickets" id="tickets"></div>
+      <div class="total"><span>どれか1点でも当たる確率</span><b id="anyHit">—</b></div>
+      <p class="note">損益分岐オッズ ＝ 1 ÷ 的中率。実際のオッズがこれを下回る買い目は、このモデル上は長く続けるほど損になります。確率は主観の能力値から出したもので、実証済みの数字ではありません。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>出走馬と能力の調整</h2>
+    <div class="card">
+      <div id="horseList"></div>
+      <div class="row" style="margin-top:10px"><button class="btn" id="resetBtn">初期値に戻す</button><span class="muted" id="saveNote"></span></div>
+    </div>
+    <p class="note">能力：ふだんの実力（点）。道悪：重い馬場での上積み・割引。ムラ：結果の振れ幅（情報不足ほど大きく）。斤量：56kgより1kg軽いごとに+0.4点。混合実績：牝馬限定戦用の項目なので、このレースでは使いません。休み明け：故障・病気明けは−1.2点で、ムラも大きくなります。調整はこの端末にだけ保存されます。</p>
+  </section>
+</div>
+
+<script>
+// ===================================================================== MODEL START
+const FRAME = { 1:["#ffffff","#111"],2:["#222222","#fff"],3:["#e60012","#fff"],4:["#1e5bc6","#fff"],5:["#f5d400","#111"],6:["#1a9b48","#fff"],7:["#f08300","#111"],8:["#f5a0c0","#111"] };
+const STYLES = ["逃げ","先行","差し","追込"];
+// ジャパンカップ2026 特別登録18頭 (番号は50音順の仮番号。枠順確定は11/27)。騎手は netkeiba の想定 (11月下旬時点)。
+// odds は予想オッズ: 上位5頭は各メディアの予想オッズの間をとった値、それ以外は Claude の仮置き。能力値はこのオッズの勝率に合うよう逆算。
+// 斤量は 4歳以上58kg・牝馬56kg と仮定。脚質は仮置き (逃げ=メイショウタバル)。
+const DEFAULT_FIELD = [
+  {no:1, name:"アーバンシック", jockey:"プーシャン", info:"牡", style:3, rating:63.8, wet:0.0, unc:1.15, kg:58, mixed:0, layoff:0, odds:20},
+  {no:2, name:"ヴェルテンベルク", jockey:"横山典", info:"—", style:2, rating:61.2, wet:0.0, unc:1.25, kg:58, mixed:0, layoff:0, odds:150},
+  {no:3, name:"エキサイトバイオ", jockey:"荻野極", info:"—", style:2, rating:62.3, wet:0.0, unc:1.2, kg:58, mixed:0, layoff:0, odds:60},
+  {no:4, name:"エシカルダイアモンド", jockey:"未定", info:"外", style:2, rating:62.2, wet:0.0, unc:1.3, kg:58, mixed:0, layoff:0, odds:50},
+  {no:5, name:"オンブズマン", jockey:"ビュイック", info:"外", style:2, rating:64.8, wet:0.0, unc:1.2, kg:58, mixed:0, layoff:0, odds:6.5},
+  {no:6, name:"カランダガン", jockey:"バルザローナ", info:"セ5・外", style:2, rating:65.9, wet:0.0, unc:1.05, kg:58, mixed:0, layoff:0, odds:3.2},
+  {no:7, name:"クロワデュノール", jockey:"C.デムーロ", info:"牡4", style:1, rating:64.6, wet:0.0, unc:1.0, kg:58, mixed:0, layoff:0, odds:5.5},
+  {no:8, name:"コスモキュランダ", jockey:"丹内", info:"—", style:1, rating:61.3, wet:0.0, unc:1.2, kg:58, mixed:0, layoff:0, odds:80},
+  {no:9, name:"ゴリアット", jockey:"スミヨン", info:"外", style:2, rating:63.8, wet:0.0, unc:1.25, kg:58, mixed:0, layoff:0, odds:15},
+  {no:10, name:"シェイクユアハート", jockey:"古川吉", info:"—", style:2, rating:61.8, wet:0.0, unc:1.25, kg:58, mixed:0, layoff:0, odds:120},
+  {no:11, name:"タガノデュード", jockey:"M.デムーロ", info:"—", style:2, rating:63.0, wet:0.0, unc:1.2, kg:58, mixed:0, layoff:0, odds:40},
+  {no:12, name:"ダノンデサイル", jockey:"戸崎", info:"牡5", style:2, rating:65.9, wet:0.0, unc:1.0, kg:58, mixed:0, layoff:0, odds:4.0},
+  {no:13, name:"テアオ", jockey:"トーレス", info:"外", style:2, rating:62.2, wet:0.0, unc:1.3, kg:58, mixed:0, layoff:0, odds:60},
+  {no:14, name:"ファーブリッジ", jockey:"ロザリオ", info:"—", style:2, rating:62.1, wet:0.0, unc:1.25, kg:58, mixed:0, layoff:0, odds:100},
+  {no:15, name:"ヘデントール", jockey:"未定", info:"牡5", style:1, rating:63.0, wet:0.0, unc:1.1, kg:58, mixed:0, layoff:0, odds:25},
+  {no:16, name:"マスカレードボール", jockey:"ルメール", info:"牡4", style:2, rating:65.4, wet:0.0, unc:1.05, kg:58, mixed:0, layoff:0, odds:6.2},
+  {no:17, name:"ミニーホーク", jockey:"R.ムーア?", info:"牝4・外", style:2, rating:62.8, wet:0.0, unc:1.25, kg:56, mixed:0, layoff:0, odds:20},
+  {no:18, name:"メイショウタバル", jockey:"未定", info:"牡5", style:0, rating:63.2, wet:0.0, unc:1.1, kg:58, mixed:0, layoff:0, odds:15},
+];
+const frameOf = (no, n) => { // JRA方式: 外枠から順に多頭になる (18頭なら7・8枠が3頭)
+  if (n <= 8) return no;
+  const base = Math.floor(n / 8), extra = n % 8; let start = 1;
+  for (let f = 1; f <= 8; f++) { const size = base + (f > 8 - extra ? 1 : 0); if (no < start + size) return f; start += size; }
+  return 8;
+};
+const PACE_BONUS = { // 脚質ごとの展開ボーナス (点)
+  slow: [2.0, 1.2, -0.5, -1.6],
+  mid:  [0.0, 0.5, 0.3, -0.3],
+  high: [-2.2, -0.8, 0.8, 1.6],
+};
+const SIGMA = 1.8;
+const WET_K = 0.5;           // 道悪適性の効き (反省: 0.8 は効かせすぎ)
+const KG_K = 0.4;            // 斤量 1kg あたりの点 (56kg 基準。3歳 54kg は +0.8)
+const MIXED = [              // 牝馬限定戦での牡馬混合重賞実績
+  { name: "なし・不明", pt: 0 }, { name: "混合OP・重賞で掲示板", pt: 0.3 },
+  { name: "混合重賞で3着内", pt: 0.6 }, { name: "混合重賞で勝利", pt: 1.0 },
+];
+const LAYOFF = [             // 休み明けの種類 (pt: 能力の加減, unc: ムラの上乗せ)
+  { name: "使って来た・不明", pt: 0, unc: 0 }, { name: "計画的な直行（外厩など）", pt: -0.3, unc: 0.1 },
+  { name: "故障・病気明け", pt: -1.2, unc: 0.25 },
+];
+const INNER_BONUS = [        // 内の状態別の脚質ボーナス [逃げ,先行,差し,追込]
+  [0, 0, 0, 0], [-0.6, -0.3, 0.5, 0.7],
+];
+const MODEL_OPTS = { inner: 0 };  // 0: 内も良好 / 1: 内が荒れて外差し有利
+// 天候: 降雨はレース中の馬場悪化分として道悪の影響に上乗せ (wet)、紛れ (sig) とタイム (time) も増やす
+const WEATHER = [
+  { name: "晴", wet: 0, sig: 1.0, time: 0 },
+  { name: "曇", wet: 0, sig: 1.0, time: 0 },
+  { name: "小雨", wet: 0.5, sig: 1.04, time: 0.4 },
+  { name: "雨", wet: 1.0, sig: 1.08, time: 0.9 },
+];
+function gauss(rng) { let u = 0, v = 0; while (u === 0) u = rng(); while (v === 0) v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function paceWeights(field) {
+  const fronts = field.filter(h => !h.out && h.style === 0).length;
+  const sens = field.filter(h => !h.out && h.style === 1).length;
+  const press = fronts + sens * 0.3; // 2頭逃げ+先行5頭 ≈ 3.5
+  const high = Math.min(0.55, Math.max(0.08, 0.06 + press * 0.04));
+  const slow = Math.min(0.6, Math.max(0.1, 0.48 - press * 0.05));
+  return { slow, mid: 1 - slow - high, high };
+}
+function drawPace(paceSetting, field, rng) {
+  if (paceSetting !== "auto") return paceSetting;
+  const w = paceWeights(field); const r = rng();
+  return r < w.slow ? "slow" : r < w.slow + w.mid ? "mid" : "high";
+}
+function performance(h, going, pace, rng, weather = 1) {
+  const gatePen = -0.03 * (h.no - 1), w = WEATHER[weather];
+  const effGoing = Math.min(3.5, going + w.wet), lay = LAYOFF[h.layoff || 0];
+  const extra = (56 - (h.kg ?? 56)) * KG_K + MIXED[h.mixed || 0].pt + lay.pt + INNER_BONUS[MODEL_OPTS.inner][h.style];
+  return h.rating + extra + h.wet * effGoing * WET_K + PACE_BONUS[pace][h.style] + gatePen + gauss(rng) * SIGMA * (h.unc + lay.unc) * w.sig;
+}
+function runOnce(field, going, paceSetting, rng, weather = 1) {
+  const pace = drawPace(paceSetting, field, rng);
+  const runners = field.filter(h => !h.out).map(h => ({ h, perf: performance(h, going, pace, rng, weather) }));
+  runners.sort((a, b) => b.perf - a.perf);
+  return { pace, runners };
+}
+function monteCarlo(field, going, paceSetting, n, rng, weather = 1) {
+  const idx = new Map(field.map((h, i) => [h.no, i]));
+  const win = new Float64Array(field.length), top2 = new Float64Array(field.length), top3 = new Float64Array(field.length);
+  const tops = new Array(n);
+  const paceCount = { slow: 0, mid: 0, high: 0 };
+  for (let s = 0; s < n; s++) {
+    const { pace, runners } = runOnce(field, going, paceSetting, rng, weather);
+    paceCount[pace]++;
+    const a = runners[0].h.no, b = runners[1].h.no, c = runners[2].h.no;
+    win[idx.get(a)]++; top2[idx.get(a)]++; top2[idx.get(b)]++;
+    top3[idx.get(a)]++; top3[idx.get(b)]++; top3[idx.get(c)]++;
+    tops[s] = [a, b, c];
+  }
+  return { n, win, top2, top3, tops, paceCount };
+}
+function ticketHits(t, top) {
+  const [a, b, c] = top; const s = t.horses;
+  if (t.type === "tan") return s[0] === a;
+  if (t.type === "fuku") return s[0] === a || s[0] === b || s[0] === c;
+  const in3 = x => x === a || x === b || x === c;
+  if (t.type === "wide") return in3(s[0]) && in3(s[1]);
+  if (t.type === "umaren") return (s[0] === a || s[0] === b) && (s[1] === a || s[1] === b);
+  if (t.type === "sanfuku") return in3(s[0]) && in3(s[1]) && in3(s[2]);
+  return false;
+}
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// ===================================================================== MODEL END
+
+// ----------------------------------------------------------------- 状態
+const STORE_KEY = "fuchu-jc-field-v1";
+let field = loadField();
+let going = 0, weather = 0, paceSetting = "auto", speed = 3, betType = "wide";
+let picked = [], tickets = [], lastMC = null;
+const $ = id => document.getElementById(id);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+function loadField() {
+  try { const s = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); if (Array.isArray(s) && s.length === DEFAULT_FIELD.length) return s.map((h, i) => ({ ...DEFAULT_FIELD[i], ...h })); } catch (e) {}
+  return DEFAULT_FIELD.map(h => ({ ...h, out: false }));
+}
+function saveField() { try { localStorage.setItem(STORE_KEY, JSON.stringify(field)); $("saveNote").textContent = "この端末に保存しました"; } catch (e) { $("saveNote").textContent = ""; } }
+const colorsOf = no => FRAME[frameOf(no, field.length)];
+const numChip = no => { const [bg, fg] = colorsOf(no); return `<span class="num" style="background:${bg};color:${fg}">${no}</span>`; };
+const byNo = no => field.find(h => h.no === no);
+
+// ----------------------------------------------------------------- コース形状 (メートル)
+// 東京: 1周2083m, 直線526m, 左回り。2400m はゴールの317m手前 (ホームストレッチ) から発走し、1周+317m。
+const S = 558, R = (2083 - 2 * S) / (2 * Math.PI), LAP = 2 * S + 2 * Math.PI * R;
+const SEG1 = S - 526; const GOAL_X = -S / 2 + SEG1; const DIST = 2400; const START_BACK = DIST - LAP; // 317
+function trackPoint(d, lane) { // d: 走った距離, lane: 内ラチからの距離(m)。左回りなので左右を反転する
+  const [x, y] = pathPoint(((d + LAP - START_BACK) % LAP + LAP) % LAP, lane);
+  return [-x, y];
+}
+function pathPoint(s, lane) { // s: ゴールから進行方向へ測った周回上の距離
+  const seg1 = SEG1, seg2 = Math.PI * R, seg3 = S, seg4 = Math.PI * R;
+  let x, y, nx, ny;
+  if (s < seg1) { x = GOAL_X - s; y = R; nx = 0; ny = 1; }
+  else if ((s -= seg1) < seg2) { const th = Math.PI / 2 + s / R; nx = Math.cos(th); ny = Math.sin(th); x = -S / 2 + R * nx; y = R * ny; }
+  else if ((s -= seg2) < seg3) { x = -S / 2 + s; y = -R; nx = 0; ny = -1; }
+  else if ((s -= seg3) < seg4) { const th = -Math.PI / 2 + s / R; nx = Math.cos(th); ny = Math.sin(th); x = S / 2 + R * nx; y = R * ny; }
+  else { s -= seg4; x = S / 2 - s; y = R; nx = 0; ny = 1; }
+  return [x + nx * lane, y + ny * lane];
+}
+
+// ----------------------------------------------------------------- レース台本
+const smooth = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+function buildRace() {
+  const rng = mulberry32((Math.random() * 2 ** 31) | 0);
+  const { pace, runners } = runOnce(field, going, paceSetting, rng, weather);
+  const T = 143.5 + [0, 1.6, 3.4, 5.8][going] + WEATHER[weather].time + { slow: 1.6, mid: 0, high: -0.9 }[pace];
+  const midF = { slow: 0.955, mid: 1.0, high: 1.035 }[pace], lateF = { slow: 1.075, mid: 1.0, high: 0.955 }[pace];
+  const fac = d => (d < 200 ? 0.72 + 0.28 * (d / 200) : d < DIST - 600 ? midF : lateF);
+  let tt = 0; for (let d = 0; d < DIST; d += 10) tt += 10 / fac(d + 5);
+  const v0 = tt / T; // m/s を掛けると係数
+  const stretch = { slow: 0.7, mid: 1.0, high: 1.45 }[pace];
+  let frontCount = 0;
+  const base = [0, 4, 11, 19];
+  const horses = runners.map((r, rank) => {
+    const h = r.h;
+    let early = base[h.style] + rng() * 4;
+    if (h.style === 0) early = (frontCount++) * 1.5 + rng() * 1.2;
+    return { h, rank, perf: r.perf, early: early * stretch, kick: 0.5 + rng() * 0.12, laneBase: 1 + (h.no - 1) * 0.32, laneKick: h.style * 1.6 + rng() * 3 };
+  });
+  let gap = 0; horses.forEach((x, i) => { if (i > 0) gap += Math.min(9, Math.max(0.1, (horses[i - 1].perf - x.perf) * 3.4)); x.final = gap; });
+  return { pace, T, v0, fac, horses, D: 0, t: 0, done: false, finished: [], events: new Set(), split1000: null };
+}
+function gapAt(x, p) {
+  const k = smooth((p - x.kick) / (1 - x.kick));
+  const wobble = Math.sin(p * 9 + x.h.no) * 0.8 * (1 - k) * Math.min(1, p * 5);
+  return Math.max(0, x.early + (x.final - x.early) * k + wobble);
+}
+function laneAt(x, d) {
+  const p = d / DIST;
+  const settle = smooth((d - 120) / 260); // 1コーナーまでに内へ
+  let lane = x.laneBase * (1 - 0.65 * settle) + 0.8;
+  const straight = smooth((d - (DIST - 540)) / 140);
+  lane += straight * x.laneKick + (going >= 2 || weather >= 3 ? straight * 2 : 0); // 道悪・雨は内が荒れて外へ
+  return Math.min(16, lane) + (p > 0.98 ? 0 : 0);
+}
+let race = null, raf = 0, lastTs = 0;
+
+function step(dt) {
+  if (!race || race.done) return;
+  race.t += dt;
+  const D = race.D + dt * race.v0 * race.fac(Math.min(race.D, DIST - 1));
+  race.D = D;
+  const p = Math.min(1, D / DIST);
+  for (const x of race.horses) {
+    x.d = D - gapAt(x, p);
+    if (!x.time && x.d >= DIST) { x.time = race.t - (x.d - DIST) / (race.v0 * race.fac(DIST - 1)); race.finished.push(x); }
+  }
+  if (!race.split1000 && D >= 1000) race.split1000 = race.t - (D - 1000) / (race.v0 * race.fac(999));
+  commentary();
+  if (race.finished.length === race.horses.length) { race.done = true; showResult(); }
+}
+function order() { return [...race.horses].sort((a, b) => (b.d ?? 0) - (a.d ?? 0)); }
+function say(main, sub) { $("call").firstChild.nodeValue = main; if (sub !== undefined) $("clock").textContent = sub; }
+function nm(x) { return `${x.h.no}${x.h.name}`; }
+function commentary() {
+  const ev = race.events, D = race.D, o = order();
+  const once = (k, f) => { if (!ev.has(k)) { ev.add(k); f(); } };
+  if (D > 0) once("start", () => say(`スタートしました！ 天候${WEATHER[weather].name}、馬場${["良", "稍重", "重", "不良"][going]}`));
+  if (D > 170) once("hana", () => say(`ハナを切ったのは${nm(o[0])}。2番手に${nm(o[1])}`));
+  if (D > 350) once("c1", () => say(`1コーナーへ。先頭${nm(o[0])}、${nm(o[1])}、${nm(o[2])}と続きます`));
+  if (D > 1000) once("1000", () => {
+    const s = race.split1000, label = s < 59.5 ? "速い流れ" : s > 61.5 ? "ゆったりした流れ" : "平均的な流れ";
+    say(`向正面、1000m通過は${s.toFixed(1)}秒。${label}です`);
+  });
+  if (D > 1550) once("keyaki", () => say(`3〜4コーナー、大ケヤキの向こう。後方の${nm(o[o.length - 1])}はまだ最後方`));
+  if (D > 1880) once("c4", () => say(`4コーナーを回って長い直線525m！ 先頭は${nm(o[0])}、外から${nm(o[Math.min(3, o.length - 1)])}`));
+  if (D > 2000) once("hill", () => say(`坂を上って残り400！ ${nm(o[0])}、${nm(o[1])}の叩き合い`));
+  if (D > 2200) once("200", () => say(`残り200！ ${nm(o[0])}先頭、${nm(o[1])}が迫る！`));
+  if (race.finished.length && !ev.has("goal")) { ev.add("goal"); say(`${nm(race.finished[0])}、ゴールイン！`); }
+  const lead = Math.max(0, Math.min(DIST, D));
+  $("clock").textContent = `${race.t.toFixed(1)}秒 ／ 残り${Math.max(0, Math.round(DIST - lead))}m ／ ${{ slow: "スロー", mid: "ミドル", high: "ハイ" }[race.pace]}ペース`;
+}
+
+// ----------------------------------------------------------------- 描画
+const trackCv = $("track"), queueCv = $("queue");
+function fit(cv) {
+  const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  return dpr;
+}
+function drawTrack() {
+  const dpr = fit(trackCv), ctx = trackCv.getContext("2d"), W = trackCv.width, H = trackCv.height;
+  const margin = 46, minX = -S / 2 - R - margin, maxX = S / 2 + R + margin;
+  const totalW = maxX - minX, totalH = 2 * R + 2 * margin;
+  const sx = W / totalW, sy = H / totalH, sc = Math.min(sx, sy * 1.35);
+  const tx = x => (W - totalW * sc) / 2 + (x - minX) * sc, ty = y => H / 2 + y * Math.min(sy, sc / 1.0) * 1.0;
+  ctx.fillStyle = css("--surface"); ctx.fillRect(0, 0, W, H);
+  // 芝帯
+  const band = (lane, color, width) => {
+    ctx.beginPath();
+    for (let d = 0; d <= LAP + 1; d += 8) { const [x0, y] = pathPoint(d % LAP, lane), x = -x0; d === 0 ? ctx.moveTo(tx(x), ty(y)) : ctx.lineTo(tx(x), ty(y)); }
+    ctx.closePath(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
+  };
+  const yScale = Math.min(sy, sc);
+  band(10, css("--turf"), 26 * yScale);
+  band(-1.5, css("--rail"), 1.2 * dpr);
+  band(21.5, css("--rail"), 1.2 * dpr);
+  // ゴール板とスタート
+  const goal = (dd, label, color) => {
+    const [x1, y1] = trackPoint(dd, -3), [x2, y2] = trackPoint(dd, 24);
+    ctx.strokeStyle = color; ctx.lineWidth = 2 * dpr; ctx.beginPath(); ctx.moveTo(tx(x1), ty(y1)); ctx.lineTo(tx(x2), ty(y2)); ctx.stroke();
+    ctx.fillStyle = css("--ink"); ctx.font = `${10 * dpr}px ${css("--font-body")}`; ctx.textAlign = "center"; ctx.fillText(label, tx(x2), ty(y2) + 12 * dpr);
+  };
+  goal(DIST, "ゴール", css("--accent"));
+  { const [x1, y1] = trackPoint(0, -3), [x2, y2] = trackPoint(0, 24);
+    ctx.strokeStyle = css("--muted"); ctx.lineWidth = 2 * dpr; ctx.beginPath(); ctx.moveTo(tx(x1) + 3 * dpr, ty(y1)); ctx.lineTo(tx(x2) + 3 * dpr, ty(y2)); ctx.stroke();
+    ctx.fillStyle = css("--ink"); ctx.font = `${10 * dpr}px ${css("--font-body")}`; ctx.textAlign = "center"; ctx.fillText("スタート", tx(x2), ty(y2) + 12 * dpr); }
+  ctx.fillStyle = css("--muted"); ctx.font = `${10 * dpr}px ${css("--font-body")}`; ctx.textAlign = "center";
+  ctx.fillText("向正面", tx(0), ty(-R) + 16 * dpr);
+  { const [hx] = trackPoint(2050, 0); ctx.fillText("↓ 直線の坂", tx(hx), ty(R) - 16 * dpr);
+    const [kx, ky] = trackPoint(1620, 0); ctx.fillText("大ケヤキ", tx(kx * 0.78), ty(ky * 0.78)); }
+  ctx.fillText("左回り・1周＋317m・直線525m", tx(0), ty(0) + 4 * dpr);
+  // 馬
+  const list = race ? [...race.horses].sort((a, b) => (a.d ?? 0) - (b.d ?? 0)) : field.filter(h => !h.out).map(h => ({ h, d: 0, laneBase: 1 + (h.no - 1) * 0.32 }));
+  const rad = Math.max(7 * dpr, Math.min(10 * dpr, 16 * sc));
+  for (const x of list) {
+    const d = Math.max(0, Math.min(DIST + 40, x.d ?? 0));
+    const lane = race ? laneAt(x, Math.max(0, d)) : x.laneBase + 0.8;
+    const [px, py] = trackPoint(d, lane); const [bg, fg] = colorsOf(x.h.no);
+    ctx.beginPath(); ctx.arc(tx(px), ty(py), rad, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill();
+    ctx.lineWidth = 1 * dpr; ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.stroke();
+    ctx.fillStyle = fg; ctx.font = `700 ${rad * 1.15}px ${css("--font-body")}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(x.h.no, tx(px), ty(py) + 0.5);
+  }
+  ctx.textBaseline = "alphabetic";
+  drawWeather(ctx, W, H, dpr);
+}
+function drawWeather(ctx, W, H, dpr) {
+  const x0 = 22 * dpr, y0 = H - 22 * dpr, ink = css("--muted");
+  ctx.save();
+  if (weather === 0) { // 太陽
+    ctx.fillStyle = css("--gold"); ctx.beginPath(); ctx.arc(x0, y0, 7 * dpr, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = css("--gold"); ctx.lineWidth = 1.6 * dpr;
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; ctx.beginPath(); ctx.moveTo(x0 + Math.cos(a) * 10 * dpr, y0 + Math.sin(a) * 10 * dpr); ctx.lineTo(x0 + Math.cos(a) * 13 * dpr, y0 + Math.sin(a) * 13 * dpr); ctx.stroke(); }
+  } else { // 雲
+    ctx.fillStyle = ink; ctx.globalAlpha = 0.55;
+    [[-6, 2, 6], [1, -2, 8], [8, 2, 6]].forEach(([dx, dy, r]) => { ctx.beginPath(); ctx.arc(x0 + dx * dpr, y0 + dy * dpr, r * dpr, 0, Math.PI * 2); ctx.fill(); });
+    ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = ink; ctx.font = `${10 * dpr}px ${css("--font-body")}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillText(WEATHER[weather].name, x0 + 18 * dpr, y0);
+  if (weather >= 2) { // 雨すじ (レース中は時間で流れる)
+    const n = weather === 3 ? 90 : 40, t = race ? race.t * 6 : 0, len = 9 * dpr;
+    ctx.strokeStyle = css("--rain"); ctx.lineWidth = 1 * dpr; ctx.beginPath();
+    for (let k = 0; k < n; k++) {
+      const rx = ((k * 97.3) % 1) * 0 + ((k * 0.6180339 * W) % W), ry = ((k * 53.7 + t * 40 * dpr) % (H + len)) - len;
+      ctx.moveTo(rx, ry); ctx.lineTo(rx - 2 * dpr, ry + len);
+    }
+    ctx.stroke();
+  }
+  ctx.restore(); ctx.textBaseline = "alphabetic";
+}
+function drawQueue() {
+  const dpr = fit(queueCv), ctx = queueCv.getContext("2d"), W = queueCv.width, H = queueCv.height;
+  ctx.fillStyle = css("--turf-dark"); ctx.fillRect(0, 0, W, H);
+  let span = 40 * 2.4;
+  if (race) { const o0 = order(); const g = (o0[0].d ?? 0) - (o0[o0.length - 1].d ?? 0); race.span = race.span ? race.span + (Math.min(40, Math.max(8, g / 2.4 * 1.15)) * 2.4 - race.span) * 0.08 : Math.max(8 * 2.4, g * 1.15); span = race.span; }
+  const spanL = span / 2.4, tick = spanL > 24 ? 5 : spanL > 12 ? 2 : 1;
+  const pad = 18 * dpr, right = W - pad, left = pad;
+  ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.font = `${9.5 * dpr}px ${css("--font-body")}`; ctx.textAlign = "center";
+  for (let L = 0; L <= spanL; L += tick) { const x = left + (L * 2.4 / span) * (right - left); ctx.fillStyle = "rgba(255,255,255,.18)"; ctx.fillRect(x, 0, 1, H - 14 * dpr); ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.fillText(L === 0 ? "先頭" : `${L}馬身`, x, H - 3 * dpr); }
+  if (!race) { ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.font = `${12 * dpr}px ${css("--font-body")}`; ctx.fillText("隊列（先頭からの差）がここに出ます", W / 2, H / 2); return; }
+  const o = order(); const leadD = o[0].d ?? 0; const rows = 5, rowH = (H - 20 * dpr) / rows; const rad = Math.min(rowH * 0.46, 11 * dpr);
+  const lastX = new Array(rows).fill(-Infinity);
+  o.forEach((x) => { // 先頭が左端、後続ほど右へ
+    const gap = Math.min(span, leadD - (x.d ?? 0)); let px = left + (gap / span) * (right - left);
+    let row = 0; while (row < rows - 1 && px - lastX[row] < rad * 2.05) row++;
+    if (px - lastX[row] < rad * 2.05) px = lastX[row] + rad * 2.05; // 全段埋まったら後ろへずらす
+    lastX[row] = px; const py = 4 * dpr + rowH * row + rowH / 2; const [bg, fg] = colorsOf(x.h.no);
+    ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.lineWidth = dpr; ctx.stroke();
+    ctx.fillStyle = fg; ctx.font = `700 ${rad * 1.05}px ${css("--font-body")}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(x.h.no, px, py + 0.5); ctx.textBaseline = "alphabetic";
+  });
+}
+function draw() { drawTrack(); drawQueue(); }
+function loop(ts) {
+  const dt = Math.min(0.1, (ts - (lastTs || ts)) / 1000); lastTs = ts;
+  const sub = 4; for (let i = 0; i < sub; i++) step(dt * speed / sub);
+  draw();
+  if (race && !race.done) raf = requestAnimationFrame(loop); else { $("runBtn").disabled = false; $("skipBtn").disabled = true; }
+}
+function startRace() {
+  cancelAnimationFrame(raf); race = buildRace(); lastTs = 0; $("resultSec").hidden = true;
+  $("runBtn").disabled = true; $("skipBtn").disabled = false; $("runBtn").textContent = "▶ もう一度";
+  raf = requestAnimationFrame(loop);
+}
+function skipRace() { if (!race) return; while (!race.done) step(0.05); draw(); }
+function margin(lenGap) {
+  if (lenGap < 0.08) return "ハナ"; if (lenGap < 0.18) return "アタマ"; if (lenGap < 0.32) return "クビ";
+  const q = Math.round(lenGap * 4) / 4; const whole = Math.floor(q), frac = q - whole;
+  const f = { 0: "", 0.25: "1/4", 0.5: "1/2", 0.75: "3/4" }[frac];
+  if (q >= 10) return "大差"; return whole ? `${whole}${f ? " " + f : ""}` : f;
+}
+function showResult() {
+  const fin = race.finished; let html = "<thead><tr><th>着</th><th>馬</th><th class='r'>タイム</th><th class='r'>着差</th></tr></thead><tbody>";
+  fin.forEach((x, i) => {
+    const t = x.time + 0, m = Math.floor(t / 60), s = (t - m * 60).toFixed(1).padStart(4, "0");
+    const g = i === 0 ? "" : margin((x.final - fin[i - 1].final) / 2.4);
+    html += `<tr><td>${i + 1}</td><td>${numChip(x.h.no)} ${x.h.name}<div class="muted">${x.h.jockey}・${STYLES[x.h.style]}</div></td><td class="r">${m}:${s}</td><td class="r">${g}</td></tr>`;
+  });
+  $("resultTbl").innerHTML = html + "</tbody>"; $("resultSec").hidden = false;
+}
+
+// ----------------------------------------------------------------- モンテカルロ
+function runMC() {
+  const btn = $("mcBtn"); btn.disabled = true; btn.textContent = "計算中…";
+  setTimeout(() => {
+    lastMC = monteCarlo(field, going, paceSetting, 10000, mulberry32((Math.random() * 2 ** 31) | 0), weather);
+    btn.disabled = false; btn.textContent = "同じ条件でもう一度10,000回";
+    renderMC(); renderTickets();
+  }, 30);
+}
+function renderMC() {
+  if (!lastMC) return;
+  const n = lastMC.n, pc = lastMC.paceCount;
+  $("mcNote").textContent = `内：${MODEL_OPTS.inner ? "荒れ" : "良好"} ／ 天候：${WEATHER[weather].name} ／ 馬場：${["良", "稍重", "重", "不良"][going]} ／ ペース内訳：スロー${Math.round(pc.slow / n * 100)}%・ミドル${Math.round(pc.mid / n * 100)}%・ハイ${Math.round(pc.high / n * 100)}%`;
+  const rows = field.map((h, i) => ({ h, w: lastMC.win[i] / n, t3: lastMC.top3[i] / n })).filter(r => !r.h.out).sort((a, b) => b.t3 - a.t3);
+  let html = "<thead><tr><th>馬</th><th class='r'>勝率</th><th class='r'>3着内</th><th class='r'>単勝</th><th class='r'>期待値</th></tr></thead><tbody>";
+  for (const r of rows) {
+    const ev = r.h.odds ? r.w * r.h.odds : null;
+    html += `<tr><td>${numChip(r.h.no)} ${r.h.name}</td><td class="r">${(r.w * 100).toFixed(1)}%</td><td class="r">${(r.t3 * 100).toFixed(1)}%</td><td class="r">${r.h.odds ? r.h.odds.toFixed(1) : "—"}</td><td class="r ${ev !== null && ev >= 1 ? "ev-good" : ""}">${ev !== null ? ev.toFixed(2) : "—"}</td></tr>`;
+  }
+  $("mcTbl").innerHTML = html + "</tbody>";
+}
+
+// ----------------------------------------------------------------- 馬券
+const NEED = { tan: 1, fuku: 1, wide: 2, umaren: 2, sanfuku: 3 };
+const BET_NAME = { tan: "単勝", fuku: "複勝", wide: "ワイド", umaren: "馬連", sanfuku: "3連複" };
+function renderPicker() {
+  $("picker").innerHTML = field.map(h => { const [bg, fg] = colorsOf(h.no); return `<button data-no="${h.no}" aria-pressed="${picked.includes(h.no)}" ${h.out ? "disabled" : ""} style="background:${bg};color:${fg}" aria-label="${h.no}番 ${h.name}">${h.no}</button>`; }).join("");
+  $("addTicket").disabled = picked.length !== NEED[betType];
+  $("addTicket").textContent = picked.length === NEED[betType] ? `${BET_NAME[betType]} ${[...picked].sort((a, b) => a - b).join("-")} を追加` : `馬番を${NEED[betType]}頭選んでください`;
+}
+function ticketKey(t) { return t.type + ":" + t.horses.join("-"); }
+function addTicket(type, horses) {
+  const t = { type, horses: [...horses].sort((a, b) => a - b) };
+  if (!tickets.some(x => ticketKey(x) === ticketKey(t))) tickets.push(t);
+}
+function renderTickets() {
+  if (!tickets.length) { $("tickets").innerHTML = `<p class="note">馬番を選んで「買い目に追加」するか、予想のプリセットを押してください。</p>`; $("anyHit").textContent = "—"; return; }
+  if (!lastMC) { lastMC = monteCarlo(field, going, paceSetting, 10000, mulberry32(12345), weather); renderMC(); }
+  const tops = lastMC.tops, n = lastMC.n; let any = 0;
+  const hits = tickets.map(() => 0);
+  for (let s = 0; s < n; s++) { let hit = false; tickets.forEach((t, i) => { if (ticketHits(t, tops[s])) { hits[i]++; hit = true; } }); if (hit) any++; }
+  $("tickets").innerHTML = tickets.map((t, i) => {
+    const p = hits[i] / n; const be = p > 0 ? (1 / p).toFixed(1) + "倍" : "—";
+    return `<div class="ticket"><span>${BET_NAME[t.type]} <b>${t.horses.join("-")}</b></span><span>${(p * 100).toFixed(1)}%<span class="muted"> ／ 分岐${be}</span></span><button data-del="${i}" aria-label="この買い目を消す">✕</button></div>`;
+  }).join("");
+  $("anyHit").textContent = `${(any / n * 100).toFixed(1)}%（${tickets.length}点）`;
+}
+
+// ----------------------------------------------------------------- 出走馬の編集
+function renderHorses() {
+  $("horseList").innerHTML = field.map((h, i) => `
+  <details class="horse ${h.out ? "scratched" : ""}" data-i="${i}">
+    <summary>${numChip(h.no)}<span class="nm">${h.name}</span><span class="meta">${h.info}・${h.kg}kg・${h.jockey}・${STYLES[h.style]}</span></summary>
+    <div class="edit">
+      <label>能力<input type="range" id="rt${i}" min="55" max="75" step="0.1" value="${h.rating}" data-k="rating"><span class="out">${(+h.rating).toFixed(1)}</span></label>
+      <label>道悪<input type="range" id="wt${i}" min="-2" max="2" step="0.1" value="${h.wet}" data-k="wet"><span class="out">${(+h.wet).toFixed(1)}</span></label>
+      <label>ムラ<input type="range" id="un${i}" min="0.6" max="2" step="0.05" value="${h.unc}" data-k="unc"><span class="out">${(+h.unc).toFixed(2)}</span></label>
+      <label>斤量<select id="kg${i}" data-k="kg">${[52, 53, 54, 55, 56, 57, 58].map(k => `<option value="${k}" ${k === h.kg ? "selected" : ""}>${k}kg</option>`).join("")}</select><span></span></label>
+      <label>混合実績<select id="mx${i}" data-k="mixed">${MIXED.map((m, k) => `<option value="${k}" ${k === (h.mixed || 0) ? "selected" : ""}>${m.name}</option>`).join("")}</select><span></span></label>
+      <label>休み明け<select id="ly${i}" data-k="layoff">${LAYOFF.map((m, k) => `<option value="${k}" ${k === (h.layoff || 0) ? "selected" : ""}>${m.name}</option>`).join("")}</select><span></span></label>
+      <label>脚質<select id="st${i}" data-k="style">${STYLES.map((s, k) => `<option value="${k}" ${k === h.style ? "selected" : ""}>${s}</option>`).join("")}</select><span></span></label>
+      <label>単勝<input type="number" id="od${i}" min="1" step="0.1" inputmode="decimal" value="${h.odds ?? ""}" data-k="odds"><span>倍</span></label>
+      <label>出走<select id="ot${i}" data-k="out"><option value="0" ${h.out ? "" : "selected"}>出走</option><option value="1" ${h.out ? "selected" : ""}>取消</option></select><span></span></label>
+    </div>
+  </details>`).join("");
+}
+$("horseList").addEventListener("input", e => {
+  const el = e.target, k = el.dataset.k; if (!k) return;
+  const i = +el.closest("details").dataset.i; const h = field[i];
+  if (k === "odds") { const v = parseFloat(el.value); if (v >= 1) { h.odds = v; saveField(); renderMC(); } return; }
+  if (k === "out") { h.out = el.value === "1"; el.closest("details").classList.toggle("scratched", h.out); picked = picked.filter(n => n !== h.no); tickets = tickets.filter(t => !t.horses.includes(h.no)); renderPicker(); }
+  else if (k === "style" || k === "kg" || k === "mixed" || k === "layoff") { h[k] = +el.value; el.closest("details").querySelector(".meta").textContent = `${h.info}・${h.kg}kg・${h.jockey}・${STYLES[h.style]}`; }
+  else { h[k] = +el.value; el.nextElementSibling.textContent = k === "unc" ? h[k].toFixed(2) : h[k].toFixed(1); }
+  lastMC = null; $("mcTbl").innerHTML = ""; renderTickets(); saveField();
+});
+$("resetBtn").addEventListener("click", () => { field = DEFAULT_FIELD.map(h => ({ ...h, out: false })); try { localStorage.removeItem(STORE_KEY); } catch (e) {} $("saveNote").textContent = "初期値に戻しました"; lastMC = null; $("mcTbl").innerHTML = ""; renderHorses(); renderPicker(); renderTickets(); if (!race || race.done) draw(); });
+
+// ----------------------------------------------------------------- UI 配線
+function seg(id, value, onChange) {
+  const box = $(id); const set = v => box.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === String(v))));
+  set(value); box.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; set(b.dataset.v); onChange(b.dataset.v); });
+}
+seg("going", going, v => { going = +v; lastMC = null; $("mcTbl").innerHTML = ""; $("mcNote").textContent = "条件が変わりました。もう一度計算してください。"; renderTickets(); });
+seg("inner", MODEL_OPTS.inner, v => { MODEL_OPTS.inner = +v; lastMC = null; $("mcTbl").innerHTML = ""; $("mcNote").textContent = "条件が変わりました。もう一度計算してください。"; renderTickets(); });
+seg("weather", weather, v => { weather = +v; lastMC = null; $("mcTbl").innerHTML = ""; $("mcNote").textContent = "条件が変わりました。もう一度計算してください。"; renderTickets(); if (!race || race.done) draw(); });
+seg("pace", paceSetting, v => { paceSetting = v; lastMC = null; $("mcTbl").innerHTML = ""; $("mcNote").textContent = "条件が変わりました。もう一度計算してください。"; renderTickets(); });
+seg("speed", speed, v => { speed = +v; });
+seg("betType", betType, v => { betType = v; picked = picked.slice(0, NEED[v]); renderPicker(); });
+$("picker").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return; const no = +b.dataset.no;
+  if (picked.includes(no)) picked = picked.filter(n => n !== no);
+  else { picked.push(no); if (picked.length > NEED[betType]) picked.shift(); }
+  renderPicker();
+});
+$("addTicket").addEventListener("click", () => { if (picked.length !== NEED[betType]) return; addTicket(betType, picked); picked = []; renderPicker(); renderTickets(); });
+$("tickets").addEventListener("click", e => { const b = e.target.closest("[data-del]"); if (!b) return; tickets.splice(+b.dataset.del, 1); renderTickets(); });
+$("preset1").addEventListener("click", () => { [[6, 12], [6, 7], [7, 12]].forEach(p => addTicket("wide", p)); renderTickets(); });
+$("preset2").addEventListener("click", () => { [[6, 12, 7], [6, 12, 16], [6, 12, 5]].forEach(p => addTicket("sanfuku", p)); renderTickets(); });
+$("mcBtn").addEventListener("click", runMC);
+$("runBtn").addEventListener("click", startRace);
+$("skipBtn").addEventListener("click", skipRace);
+window.addEventListener("resize", () => { if (!race || race.done) draw(); });
+window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.("change", () => draw());
+new MutationObserver(() => draw()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+renderHorses(); renderPicker(); renderTickets();
+document.fonts?.ready.then(draw); draw();
+</script>
