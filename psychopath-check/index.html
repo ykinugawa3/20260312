@@ -1,0 +1,488 @@
+<title>サイコパス度チェック</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a single clinical record sheet — header strip, one question card at a time, result as a scored report. */
+:root {
+  --paper: #eef1f3;
+  --sheet: #fbfcfc;
+  --ink: #1b2430;
+  --muted: #5d6874;
+  --rule: #cfd6dc;
+  --accent: #8e1f2c;      /* oxblood: the "red pen" of the examiner */
+  --accent-soft: #f3dfe1;
+  --bold: #2f5d8a;        /* 大胆さ */
+  --mean: #8e1f2c;        /* 冷淡さ */
+  --dis:  #b86e12;        /* 脱抑制 */
+  --font-display: "Dela Gothic One", "Hiragino Kaku Gothic StdN", "Yu Gothic", sans-serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12171d; --sheet: #1a2129; --ink: #e4e9ee; --muted: #98a3ae; --rule: #2e3843;
+    --accent: #e0707c; --accent-soft: #3a2228; --bold: #7fb0de; --mean: #e0707c; --dis: #e0a45a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12171d; --sheet: #1a2129; --ink: #e4e9ee; --muted: #98a3ae; --rule: #2e3843;
+  --accent: #e0707c; --accent-soft: #3a2228; --bold: #7fb0de; --mean: #e0707c; --dis: #e0a45a;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.7;
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+header.strip {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  border-bottom: 2px solid var(--ink); padding-bottom: 8px;
+}
+.form-id { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(28px, 7vw, 40px); line-height: 1.2; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 400; font-size: 22px; margin: 0; line-height: 1.3; text-wrap: balance; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+
+.sheet { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+@media (max-width: 420px) { .sheet { padding: 18px; } }
+
+/* intro */
+.axes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .axes { grid-template-columns: 1fr; } }
+.axis { border-top: 4px solid var(--c); padding-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+.axis b { font-size: 16px; }
+.axis .en { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; color: var(--c); text-transform: uppercase; }
+.axis span:last-child { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.meta-row { display: flex; gap: 20px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.meta-row strong { color: var(--ink); font-weight: 600; }
+.notice { background: var(--accent-soft); border-left: 3px solid var(--accent); padding: 10px 14px; font-size: 13px; border-radius: 0 4px 4px 0; }
+
+button { font: inherit; cursor: pointer; }
+.btn {
+  appearance: none; border: 2px solid var(--ink); background: var(--ink); color: var(--sheet);
+  padding: 12px 22px; border-radius: 4px; font-weight: 700; font-size: 16px; letter-spacing: .02em;
+}
+.btn:hover { background: var(--accent); border-color: var(--accent); }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn.ghost:hover { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.btn:focus-visible, .opt:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+/* quiz */
+.progress { display: flex; flex-direction: column; gap: 6px; }
+.progress-top { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.track { height: 6px; background: var(--rule); border-radius: 3px; overflow: hidden; }
+.track > i { display: block; height: 100%; background: var(--ink); width: 0; transition: width .25s ease; }
+.qnum { font-family: var(--font-mono); font-size: 13px; color: var(--accent); letter-spacing: .06em; }
+.qtext { font-size: clamp(19px, 4.6vw, 23px); font-weight: 700; line-height: 1.55; min-height: 3.1em; }
+.scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.opt {
+  appearance: none; border: 1.5px solid var(--rule); background: var(--sheet); color: var(--ink);
+  border-radius: 6px; padding: 12px 4px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  min-width: 0; transition: border-color .12s, background .12s;
+}
+.opt .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--muted); display: grid; place-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.opt .lbl { font-size: 12px; line-height: 1.35; text-align: center; color: var(--muted); }
+.opt:hover { border-color: var(--ink); }
+.opt.sel { border-color: var(--accent); background: var(--accent-soft); }
+.opt.sel .dot { background: var(--accent); border-color: var(--accent); color: var(--sheet); }
+.opt.sel .lbl { color: var(--ink); font-weight: 700; }
+@media (max-width: 420px) {
+  .scale { grid-template-columns: 1fr; gap: 6px; }
+  .opt { flex-direction: row; justify-content: flex-start; padding: 10px 12px; gap: 12px; }
+  .opt .lbl { text-align: left; font-size: 14px; }
+}
+.ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+@media (max-width: 420px) { .ends { display: none; } }
+.hint { font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+@media (hover: none) { .hint { display: none; } }
+
+/* result */
+.score-head { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.big { font-family: var(--font-display); font-size: clamp(64px, 18vw, 96px); line-height: .9; color: var(--accent); font-variant-numeric: tabular-nums; }
+.big small { font-family: var(--font-mono); font-size: 16px; color: var(--muted); margin-left: 4px; }
+.band-tag { display: inline-block; font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; border: 1.5px solid var(--accent); color: var(--accent); padding: 2px 8px; border-radius: 3px; }
+.gauge { position: relative; padding-top: 4px; }
+.gauge-bar { display: grid; grid-template-columns: 25fr 20fr 20fr 15fr 20fr; height: 14px; border-radius: 3px; overflow: hidden; gap: 2px; }
+.gauge-bar span { background: var(--accent); }
+.gauge-bar span:nth-child(1) { opacity: .12; } .gauge-bar span:nth-child(2) { opacity: .25; }
+.gauge-bar span:nth-child(3) { opacity: .45; } .gauge-bar span:nth-child(4) { opacity: .7; } .gauge-bar span:nth-child(5) { opacity: 1; }
+.needle { position: absolute; top: -4px; width: 3px; height: 26px; background: var(--ink); border-radius: 2px; transform: translateX(-50%); transition: left .6s cubic-bezier(.2,.8,.2,1); }
+.gauge-ticks { position: relative; height: 18px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
+.gauge-ticks span { position: absolute; transform: translateX(-50%); }
+.gauge-ticks span:first-child { transform: none; } .gauge-ticks span:last-child { transform: translateX(-100%); }
+
+.subs { display: flex; flex-direction: column; gap: 14px; }
+.sub { display: grid; grid-template-columns: 7.5em minmax(0,1fr) 3.2em; align-items: center; gap: 10px; }
+.sub .name { font-weight: 700; font-size: 15px; line-height: 1.3; }
+.sub .name em { display: block; font-style: normal; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; color: var(--c); text-transform: uppercase; font-weight: 400; }
+.sub .bar { height: 12px; background: var(--rule); border-radius: 2px; overflow: hidden; }
+.sub .bar i { display: block; height: 100%; background: var(--c); width: 0; transition: width .6s cubic-bezier(.2,.8,.2,1); }
+.sub .val { font-family: var(--font-mono); font-size: 15px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.type-box { border: 2px solid var(--ink); border-radius: 6px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.type-box .k { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
+.sub-notes { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.sub-notes li { border-left: 3px solid var(--c); padding-left: 12px; font-size: 14px; }
+.sub-notes b { display: block; font-size: 14px; }
+
+details { border-top: 1px solid var(--rule); padding-top: 12px; }
+summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+.ans-table-wrap { overflow-x: auto; margin-top: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; color: var(--muted); font-weight: 400; text-transform: uppercase; }
+td.n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chip { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 6px; vertical-align: middle; }
+.rev { font-family: var(--font-mono); font-size: 10px; color: var(--muted); border: 1px solid var(--rule); border-radius: 2px; padding: 0 4px; margin-left: 4px; }
+.copied { font-size: 13px; color: var(--muted); }
+
+footer { font-size: 12px; color: var(--muted); line-height: 1.7; }
+
+.fade { animation: fade .22s ease both; }
+@keyframes fade { from { opacity: .3; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .fade { animation: none; } .track > i, .needle, .sub .bar i { transition: none; }
+}
+</style>
+
+<div class="wrap">
+  <header class="strip">
+    <h1>サイコパス度チェック</h1>
+    <span class="form-id">Form TPS-24 · 自己記入式</span>
+  </header>
+
+  <!-- INTRO -->
+  <section id="intro" class="sheet fade">
+    <h2>24の質問で、あなたの「サイコパス傾向」を3つの軸から測ります</h2>
+    <p class="muted">心理学でよく使われる「三元モデル」の考え方を下敷きに、サイコパス的な特性を次の3つに分けてスコア化します。</p>
+    <div class="axes">
+      <div class="axis" style="--c: var(--bold)"><span class="en">Boldness</span><b>大胆さ</b><span>恐れ知らず、ストレスに強い、物怖じしない</span></div>
+      <div class="axis" style="--c: var(--mean)"><span class="en">Meanness</span><b>冷淡さ</b><span>共感の薄さ、罪悪感の少なさ、他人の利用</span></div>
+      <div class="axis" style="--c: var(--dis)"><span class="en">Disinhibition</span><b>脱抑制</b><span>衝動性、自制の弱さ、ルール軽視</span></div>
+    </div>
+    <div class="meta-row">
+      <span>設問 <strong>24</strong></span>
+      <span>回答 <strong>5段階</strong></span>
+      <span>所要 <strong>約3分</strong></span>
+    </div>
+    <p class="notice">これは娯楽・自己理解のためのチェックで、医学的な診断ではありません。質問は本アプリ用のオリジナルで、学術的な妥当性検証は行っていません。</p>
+    <p class="small muted">深く考えず、「ふだんの自分」に一番近いものを選んでください。正解・不正解はありません。</p>
+    <div class="actions">
+      <button class="btn" id="startBtn" type="button">チェックを始める</button>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="quiz" class="sheet" hidden>
+    <div class="progress">
+      <div class="progress-top"><span id="progLabel">Q 1 / 24</span><span id="progPct">0%</span></div>
+      <div class="track"><i id="progBar"></i></div>
+    </div>
+    <div id="qBox" class="fade" style="display:flex;flex-direction:column;gap:14px">
+      <span class="qnum" id="qNum">QUESTION 01</span>
+      <p class="qtext" id="qText"></p>
+    </div>
+    <div class="scale" id="scale" role="radiogroup" aria-labelledby="qText"></div>
+    <div class="ends"><span>← まったく当てはまらない</span><span>とても当てはまる →</span></div>
+    <div class="actions" style="justify-content:space-between">
+      <button class="btn ghost" id="backBtn" type="button">← 前の質問</button>
+      <span class="hint">キーボード 1〜5 でも回答できます</span>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section id="result" class="sheet" hidden>
+    <span class="form-id">Result</span>
+    <div class="score-head">
+      <div class="big"><span id="totalScore">0</span><small>/ 100</small></div>
+      <div style="display:flex;flex-direction:column;gap:6px;padding-bottom:6px">
+        <span class="band-tag" id="bandTag">—</span>
+        <span class="small muted">総合サイコパス度</span>
+      </div>
+    </div>
+    <div class="gauge" aria-hidden="true">
+      <div class="gauge-bar"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="needle" id="needle" style="left:0%"></div>
+      <div class="gauge-ticks"><span style="left:0%">0</span><span style="left:25%">25</span><span style="left:45%">45</span><span style="left:65%">65</span><span style="left:80%">80</span><span style="left:100%">100</span></div>
+    </div>
+
+    <div class="type-box">
+      <span class="k">あなたのタイプ</span>
+      <h2 id="typeName">—</h2>
+      <p id="typeDesc" class="small"></p>
+    </div>
+
+    <div class="subs" id="subs"></div>
+    <ul class="sub-notes" id="subNotes"></ul>
+
+    <details>
+      <summary>回答の内訳を見る</summary>
+      <div class="ans-table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>質問</th><th>回答</th><th>得点</th></tr></thead>
+          <tbody id="ansBody"></tbody>
+        </table>
+      </div>
+    </details>
+
+    <div class="actions">
+      <button class="btn" id="retryBtn" type="button">もう一度チェックする</button>
+      <button class="btn ghost" id="copyBtn" type="button">結果をコピー</button>
+      <span class="copied" id="copyMsg" aria-live="polite"></span>
+    </div>
+    <p class="notice">スコアが高くても「サイコパス」と診断されるわけではありません。大胆さのように、仕事やリーダーシップで役立つ面もあります。気になる悩みがある場合は専門家に相談してください。</p>
+  </section>
+
+  <footer>
+    採点方法: 各設問を0〜4点に換算(<span class="rev">逆</span>の設問は反転)し、軸ごとに32点満点を0〜100に変換。総合スコアは3軸の平均です。回答はこの端末の中だけで処理され、どこにも送信されません。
+  </footer>
+</div>
+
+<script>
+(function () {
+  const AX = {
+    B: { name: "大胆さ", en: "Boldness", c: "var(--bold)" },
+    M: { name: "冷淡さ", en: "Meanness", c: "var(--mean)" },
+    D: { name: "脱抑制", en: "Disinhibition", c: "var(--dis)" },
+  };
+  // r: true = reverse-scored
+  const Q = [
+    { a: "B", t: "初対面の人が大勢いる場でも、緊張せずに話せる。" },
+    { a: "M", t: "他人が困っていても、自分に関係なければ特に何も感じない。" },
+    { a: "D", t: "思いついたら、後先を考えずに行動してしまう。" },
+    { a: "B", t: "危険な状況になるほど、頭が冴えて落ち着いてくる。" },
+    { a: "M", t: "映画やドラマで登場人物が傷つくと、自分までつらくなる。", r: true },
+    { a: "D", t: "退屈にとても弱く、じっとしているのが苦手だ。" },
+    { a: "B", t: "失敗するのが怖くて、新しいことに手を出せないことが多い。", r: true },
+    { a: "M", t: "目的のためなら、多少人を利用しても構わないと思う。" },
+    { a: "D", t: "計画を立てて、その通りに物事を進めるのが得意だ。", r: true },
+    { a: "B", t: "人前で批判されても、ほとんど動揺しない。" },
+    { a: "M", t: "人をからかって、怒ったり困ったりする反応を見るのが面白い。" },
+    { a: "D", t: "お金が入ると、ついその場で使い切ってしまう。" },
+    { a: "B", t: "スリルのある体験を、わざわざ探しに行くことがある。" },
+    { a: "M", t: "人の気持ちを考えて、言葉を選ぶほうだ。", r: true },
+    { a: "D", t: "カッとなると、言ってはいけないことまで言ってしまう。" },
+    { a: "B", t: "将来のことを考えて、不安で眠れなくなることがある。", r: true },
+    { a: "M", t: "誰かを傷つけても、後からあまり罪悪感は残らない。" },
+    { a: "D", t: "ルールは、バレなければ破ってもいいと思う。" },
+    { a: "B", t: "交渉や駆け引きで、相手を言いくるめるのが得意だ。" },
+    { a: "M", t: "弱い立場の人に同情するのは、甘さだと思う。" },
+    { a: "D", t: "面倒な作業でも、最後まできちんとやり遂げる。", r: true },
+    { a: "B", t: "自分には、人を引っ張っていく力があると思う。" },
+    { a: "M", t: "約束を破ってしまったら、相手に申し訳ないと強く思う。", r: true },
+    { a: "D", t: "約束の時間や締め切りを守れないことがよくある。" },
+  ];
+  const OPTS = ["まったく当てはまらない", "あまり当てはまらない", "どちらとも言えない", "やや当てはまる", "とても当てはまる"];
+
+  const BANDS = [
+    { min: 80, tag: "VERY HIGH · 非常に高い" },
+    { min: 65, tag: "HIGH · 高い" },
+    { min: 45, tag: "ABOVE AVG · やや高め" },
+    { min: 25, tag: "AVERAGE · 平均的" },
+    { min: 0,  tag: "LOW · 低い" },
+  ];
+
+  const NOTES = {
+    B: [
+      "慎重で、リスクには敏感なタイプ。危ない橋は渡らず、周りの空気もよく読めます。",
+      "場面によって度胸が出たり出なかったり。ほどよい緊張感を持てるバランス型です。",
+      "プレッシャーに強く、物怖じしないタイプ。リーダーや交渉役で力を発揮しやすい反面、危険を軽く見すぎることも。",
+    ],
+    M: [
+      "共感力が高く、人の痛みに敏感です。人に優しい分、自分が疲れやすい点には注意。",
+      "情に流されすぎず、必要なときはドライにも振る舞える、現実的なバランス感覚があります。",
+      "他人の感情に左右されにくく、合理的に判断できます。ただし周囲からは「冷たい」と受け取られやすいかも。",
+    ],
+    D: [
+      "自制心が強く、計画的。ルールや約束をきっちり守る堅実派です。",
+      "基本はきちんとしつつ、ときどき勢いで動くこともある、ふつうの範囲です。",
+      "衝動に素直で、思い立ったらすぐ動くタイプ。行動力は武器ですが、お金や人間関係のトラブルには要注意。",
+    ],
+  };
+
+  const TYPES = {
+    low:  { n: "共感あふれる平和主義者", d: "3つの軸がいずれも低め。人の気持ちに寄り添い、ルールも大事にする、サイコパスとは対極に近いタイプです。" },
+    flat: { n: "バランス型の常識人", d: "3つの軸に大きな偏りがありません。状況に応じて大胆にも慎重にもなれる、いわゆる「ふつう」の範囲です。" },
+    B:    { n: "恐れ知らずの冒険家", d: "大胆さが突出しています。共感や自制はそれなりに保ちつつ、プレッシャーやリスクに強いタイプ。起業家や救急の現場などで活きる気質です。" },
+    M:    { n: "クールな合理主義者", d: "冷淡さが目立ちます。感情より損得や効率で判断しがち。冷静さは強みですが、人間関係では言葉を少し柔らかくすると吉。" },
+    D:    { n: "衝動まかせの自由人", d: "脱抑制が目立ちます。退屈が苦手で、思い立ったら即行動。ノリの良さは魅力ですが、後先を考える一呼吸を意識すると安定します。" },
+    BM:   { n: "冷徹な戦略家", d: "大胆さと冷淡さがともに高め。動じず、目的のために割り切れるタイプです。いわゆる「成功するサイコパス」像に近く、組織のトップに見られやすい組み合わせ。" },
+    BD:   { n: "スリル中毒のギャンブラー", d: "大胆さと脱抑制がともに高め。恐れ知らずで衝動的、刺激を求めて突っ走るタイプ。思わぬ大成功もあれば大失敗もある、波乱型です。" },
+    MD:   { n: "危なっかしい一匹狼", d: "冷淡さと脱抑制がともに高め。人に合わせることも自分を抑えることも苦手で、トラブルを招きやすい組み合わせ。意識して周りと関わると安定します。" },
+    all:  { n: "教科書どおりのサイコパス気質", d: "3つの軸すべてが高め。恐れ知らずで、冷静に割り切り、衝動のまま動ける。創作の中の「サイコパス」像そのものです。もちろん、これは診断ではありません。" },
+  };
+
+  const $ = (id) => document.getElementById(id);
+  let answers = new Array(Q.length).fill(null);
+  let idx = 0;
+  let locked = false;
+
+  function show(id) {
+    ["intro", "quiz", "result"].forEach((s) => { $(s).hidden = s !== id; });
+    $(id).classList.remove("fade"); void $(id).offsetWidth; $(id).classList.add("fade");
+    window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+  }
+
+  function buildScale() {
+    const el = $("scale");
+    el.innerHTML = "";
+    OPTS.forEach((label, i) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "opt"; b.id = "opt" + (i + 1);
+      b.setAttribute("role", "radio");
+      b.innerHTML = '<span class="dot">' + (i + 1) + '</span><span class="lbl">' + label + "</span>";
+      b.addEventListener("click", () => choose(i));
+      el.appendChild(b);
+    });
+  }
+
+  function renderQ() {
+    const q = Q[idx];
+    $("qNum").textContent = "QUESTION " + String(idx + 1).padStart(2, "0");
+    $("qText").textContent = q.t;
+    const done = answers.filter((a) => a !== null).length;
+    $("progLabel").textContent = "Q " + (idx + 1) + " / " + Q.length;
+    $("progPct").textContent = Math.round((done / Q.length) * 100) + "%";
+    $("progBar").style.width = (done / Q.length) * 100 + "%";
+    document.querySelectorAll(".opt").forEach((b, i) => {
+      const sel = answers[idx] === i;
+      b.classList.toggle("sel", sel);
+      b.setAttribute("aria-checked", sel ? "true" : "false");
+    });
+    $("backBtn").disabled = idx === 0;
+    const box = $("qBox"); box.classList.remove("fade"); void box.offsetWidth; box.classList.add("fade");
+  }
+
+  function choose(i) {
+    if (locked) return;
+    answers[idx] = i;
+    renderQ();
+    locked = true;
+    setTimeout(() => {
+      locked = false;
+      if (idx < Q.length - 1) { idx++; renderQ(); }
+      else { const firstEmpty = answers.indexOf(null); if (firstEmpty >= 0) { idx = firstEmpty; renderQ(); } else showResult(); }
+    }, 220);
+  }
+
+  function itemScore(q, a) { return q.r ? 4 - a : a; }
+
+  function compute() {
+    const sum = { B: 0, M: 0, D: 0 }, max = { B: 0, M: 0, D: 0 };
+    Q.forEach((q, i) => { sum[q.a] += itemScore(q, answers[i]); max[q.a] += 4; });
+    const pct = {};
+    Object.keys(sum).forEach((k) => (pct[k] = Math.round((sum[k] / max[k]) * 100)));
+    const total = Math.round((pct.B + pct.M + pct.D) / 3);
+    return { pct, total };
+  }
+
+  function level(p) { return p >= 60 ? 2 : p >= 35 ? 1 : 0; }
+
+  function pickType(pct) {
+    const hi = ["B", "M", "D"].filter((k) => pct[k] >= 60);
+    if (hi.length === 3) return TYPES.all;
+    if (hi.length === 2) return TYPES[hi.join("")];
+    if (hi.length === 1) return TYPES[hi[0]];
+    if (pct.B < 35 && pct.M < 35 && pct.D < 35) return TYPES.low;
+    // nothing high: lean toward the clearly strongest axis, else balanced
+    const sorted = ["B", "M", "D"].sort((a, b) => pct[b] - pct[a]);
+    if (pct[sorted[0]] >= 45 && pct[sorted[0]] - pct[sorted[1]] >= 15) return TYPES[sorted[0]];
+    return TYPES.flat;
+  }
+
+  function showResult() {
+    const { pct, total } = compute();
+    const band = BANDS.find((b) => total >= b.min);
+    const type = pickType(pct);
+    $("totalScore").textContent = total;
+    $("bandTag").textContent = band.tag;
+    $("typeName").textContent = type.n;
+    $("typeDesc").textContent = type.d;
+
+    const subs = $("subs"); subs.innerHTML = "";
+    const notes = $("subNotes"); notes.innerHTML = "";
+    ["B", "M", "D"].forEach((k) => {
+      const ax = AX[k];
+      const row = document.createElement("div");
+      row.className = "sub"; row.style.setProperty("--c", ax.c);
+      row.innerHTML = '<span class="name"><em>' + ax.en + "</em>" + ax.name + '</span><span class="bar"><i></i></span><span class="val">' + pct[k] + "</span>";
+      subs.appendChild(row);
+      const li = document.createElement("li");
+      li.style.setProperty("--c", ax.c);
+      li.innerHTML = "<b>" + ax.name + "(" + pct[k] + ")</b>" + NOTES[k][level(pct[k])];
+      notes.appendChild(li);
+    });
+
+    const body = $("ansBody"); body.innerHTML = "";
+    Q.forEach((q, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td class="n">' + (i + 1) + '</td><td><span class="chip" style="--c:' + AX[q.a].c + '"></span>' + q.t + (q.r ? '<span class="rev">逆</span>' : "") + "</td><td>" + OPTS[answers[i]] + '</td><td class="n">' + itemScore(q, answers[i]) + "</td>";
+      body.appendChild(tr);
+    });
+
+    show("result");
+    $("needle").style.left = "0%";
+    subs.querySelectorAll(".bar i").forEach((b) => (b.style.width = "0%"));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      $("needle").style.left = total + "%";
+      const keys = ["B", "M", "D"];
+      subs.querySelectorAll(".bar i").forEach((b, i) => (b.style.width = pct[keys[i]] + "%"));
+    }));
+    $("copyMsg").textContent = "";
+    window.__lastResult = { pct, total, type, band };
+  }
+
+  function start() {
+    answers = new Array(Q.length).fill(null);
+    idx = 0;
+    show("quiz");
+    renderQ();
+    $("opt1").focus({ preventScroll: true });
+  }
+
+  buildScale();
+  $("startBtn").addEventListener("click", start);
+  $("retryBtn").addEventListener("click", start);
+  $("backBtn").addEventListener("click", () => { if (idx > 0) { idx--; renderQ(); } });
+  document.addEventListener("keydown", (e) => {
+    if ($("quiz").hidden || e.metaKey || e.ctrlKey || e.altKey) return;
+    const n = parseInt(e.key, 10);
+    if (n >= 1 && n <= 5) { e.preventDefault(); choose(n - 1); }
+    else if (e.key === "Backspace" || e.key === "ArrowLeft") { if (idx > 0) { e.preventDefault(); idx--; renderQ(); } }
+  });
+
+  $("copyBtn").addEventListener("click", () => {
+    const r = window.__lastResult; if (!r) return;
+    const text = "【サイコパス度チェック】\n総合: " + r.total + "/100(" + r.band.tag.split(" · ")[1] + ")\nタイプ: " + r.type.n +
+      "\n大胆さ " + r.pct.B + " / 冷淡さ " + r.pct.M + " / 脱抑制 " + r.pct.D + "\n※娯楽目的のチェックで、診断ではありません";
+    const ok = () => ($("copyMsg").textContent = "コピーしました");
+    const fallback = () => {
+      const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", "");
+      ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+      let done = false; try { done = document.execCommand("copy"); } catch (_) {}
+      document.body.removeChild(ta);
+      $("copyMsg").textContent = done ? "コピーしました" : "コピーできませんでした。手動で選択してください";
+    };
+    try { navigator.clipboard.writeText(text).then(ok, fallback); } catch (_) { fallback(); }
+  });
+
+  window.__psyDebug = { Q, compute, pickType, setAnswers: (a) => { answers = a; } };
+})();
+</script>
